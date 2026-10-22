@@ -14,9 +14,11 @@ document loading defaults. Work locally unless the user requests subagents.
 
 ## Video data location
 
-Video data lives outside the kit, in `../VideoData/`. The folders `video-projects/`,
-`projects-full/`, and `movies-highlight/` in the kit root are symlinks into
-`../VideoData/`, so keep using those relative paths. The tracked example projects
+Video data lives outside the kit, in `../VideoData/`. The folders `video-projects/`
+and `projects-full/` in the kit root are symlinks into `../VideoData/`, so keep
+using those relative paths. `projects-full/<name>/` only holds the inputs a project
+starts from. Before a render, every file the render needs must be inside
+`video-projects/<name>/`; copy inputs there, never reference them from outside. The tracked example projects
 under `video-projects/` are marked skip-worktree; their working copies are in
 `../VideoData/video-projects/`.
 
