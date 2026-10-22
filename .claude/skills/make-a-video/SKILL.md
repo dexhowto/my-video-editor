@@ -62,7 +62,7 @@ Then ask progressively — they don't need answers to all of these:
 
 1. Style guide or brand doc? (paste/path · no)
 2. Color palette? (hex codes · none — use MOTION_PHILOSOPHY defaults)
-3. Fonts? (Google Fonts name(s) · file paths · none — use Inter + JetBrains Mono defaults)
+3. Fonts? (Google Fonts name(s) · file paths · none — use Space Grotesk + JetBrains Mono defaults)
 4. Logo file? (path · none — use text wordmark instead)
 5. Reference videos for vibe? (URLs/paths · none)
 6. Other assets? (screenshots · product photos · b-roll · music — list paths)
@@ -108,7 +108,10 @@ Otherwise continue:
 1. `mkdir <project-folder>`
 2. If a sibling project with similar format exists, offer to copy its `hyperframes.json` + `meta.json` as a template. Otherwise from inside the folder: `npx hyperframes init`
 3. Edit `meta.json` with the user's slug, dimensions, fps.
-4. Copy supplied assets into `<project-folder>/assets/`.
+4. Copy supplied assets into `<project-folder>/assets/`. Normalize every voice
+   file (recorded narration, TTS, face-cam audio) before use, from the repo root:
+   `node scripts/normalize-audio.mjs <file>` (two-pass, -16 LUFS, writes
+   `<stem>.norm<ext>`, length unchanged). Use the `.norm` file in compositions.
 5. Create `<project-folder>/assets/style-profile.md` from Gate 3 — single source of truth for palette/fonts/logo.
 
 ### Storyboard

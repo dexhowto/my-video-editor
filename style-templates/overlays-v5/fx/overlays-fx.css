@@ -1,0 +1,177 @@
+/* overlays-fx.css: effect kit for the overlays-v5 starters (video-pc-edit,
+   video-iphone-edit, video-iphone-pc-edit). Copied into a project's assets/ and
+   loaded in <head> before the template's inline <style>. Design units are the
+   1080p #canvas (scaled 2x to 4K). Spec and usage rules: README.md next to this file.
+
+   Layering (z-index inside #canvas):
+     0  #screen / .phone (footage)
+     1  #zoom-vig, .fx-callout                pinned to the footage
+     2  .takeover                             tier-1 cards (hook, agenda, sections, interludes)
+     3  .badge, .fx-cmd, .fx-check            tier-2 text over footage
+     4  .fx-title                             on-screen statement (blurs everything below it)
+     5  #endscreen
+   Tones: add tone-ok | tone-warn | tone-bad | tone-violet to any fx element (default blue). */
+
+.fx-callout, .fx-title, .fx-cmd, .fx-check{--tone:#37BDF8; --tone-rgb:55,189,248; --tone-hi:#BFEAFF}
+.tone-ok{--tone:#4ADE80; --tone-rgb:74,222,128; --tone-hi:#C9F7DA}
+.tone-warn{--tone:#F5A82A; --tone-rgb:245,168,42; --tone-hi:#FFE2A0}
+.tone-bad{--tone:#FF5A4E; --tone-rgb:255,90,78; --tone-hi:#FFC2BC}
+.tone-violet{--tone:#B794FF; --tone-rgb:183,148,255; --tone-hi:#E1D0FF}
+
+/* Render safety: only .fx-title's scrim uses backdrop-filter. Blur, backdrop blur, radial-gradient
+   and clip-path rules count as "heavy overlays" in HyperFrames lint (composition_heavy_overlay_count_high,
+   warns at 25 elements, black captures seen at ~40), so surfaces here are near-opaque instead. */
+/* shared surface */
+.fx-glass{background:rgba(9,13,20,.86);
+  border:1.5px solid rgba(255,255,255,.13);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18), 0 20px 56px rgba(0,0,0,.50)}
+
+/* ---- zoom focus: vignette + thin frame while a zoom holds (created by FX.zoom) ---- */
+#zoom-vig{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:0;
+  background:radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 58%, rgba(0,0,0,.55) 100%)}
+#zoom-vig::after{content:'';position:absolute;inset:14px;border-radius:20px;
+  border:2px solid rgba(55,189,248,.42);box-shadow:inset 0 0 40px rgba(55,189,248,.12)}
+
+/* ---- 1. CALLOUT: a pin on a screen target, a drawn line, and a glass note ----
+   <div id="co-1" class="fx-callout clip tone-ok" data-start=".." data-duration=".." data-track-index="7"
+        data-x="1430" data-y="915" data-side="right">
+     <div class="co-label"><span class="co-k">Path</span><b class="co-t">C:\src\flutter\bin</b><span class="co-s">Flutter's tools</span></div>
+   </div>
+   data-x/y: target in TRACK pixels (pc-track / phone-track). data-side: right|left|up|down.
+   Optional data-len (line length, default 150) and data-rise (elbow height for right/left, default -60). */
+.fx-callout{position:absolute;left:0;top:0;width:0;height:0;z-index:1;pointer-events:none}
+.fx-callout .co-pin{position:absolute;left:-10px;top:-10px;width:20px;height:20px;border-radius:50%;
+  background:var(--tone);box-shadow:0 0 0 5px rgba(var(--tone-rgb),.25), 0 0 26px rgba(var(--tone-rgb),.95)}
+.fx-callout .co-ring{position:absolute;left:-32px;top:-32px;width:64px;height:64px;border-radius:50%;
+  border:3px solid rgba(var(--tone-rgb),.9)}
+.fx-callout svg.co-line{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible}
+.fx-callout svg.co-line path{fill:none;stroke:var(--tone);stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round;
+  filter:drop-shadow(0 0 6px rgba(var(--tone-rgb),.85))}
+.fx-callout .co-pos{position:absolute}
+.fx-callout .co-label{white-space:nowrap;padding:15px 26px 17px;border-radius:18px;
+  background:rgba(9,13,20,.88);
+  border:1.5px solid rgba(var(--tone-rgb),.6);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18), 0 18px 50px rgba(0,0,0,.5), 0 0 30px rgba(var(--tone-rgb),.28)}
+.fx-callout .co-k{display:block;margin-bottom:6px;font-family:var(--mono);font-size:16px;letter-spacing:3px;
+  text-transform:uppercase;color:var(--tone)}
+.fx-callout .co-t{display:block;font-family:var(--display);font-weight:800;font-size:36px;letter-spacing:-.5px;color:#fff;
+  text-shadow:0 0 18px rgba(var(--tone-rgb),.35)}
+.fx-callout .co-t.mono{font-family:var(--mono);font-weight:700;font-size:32px;letter-spacing:0}
+.fx-callout .co-s{display:block;margin-top:6px;font-family:var(--body);font-weight:500;font-size:23px;color:rgba(240,238,233,.72)}
+
+/* ---- 2. ON-SCREEN STATEMENT: big text over the footage, which blurs and dims behind it ----
+   <div id="say-1" class="fx-title clip tone-warn" data-start=".." data-duration="4.5" data-track-index="8" data-pos="center">
+     <div class="ft-kicker">Warning</div>
+     <div class="ft-line">Never in <span class="mark">Program Files</span></div>
+     <div class="ft-sub">Folders that need admin rights cause errors later.</div>
+   </div>
+   data-pos: center (default) | lower (lower-left block) | top. One .mark per line at most. */
+.fx-title{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:24px;text-align:center;pointer-events:none}
+.fx-title .ft-scrim{position:absolute;inset:0;z-index:0;
+  background:radial-gradient(ellipse at 50% 50%, rgba(6,9,14,.62) 0%, rgba(6,9,14,.86) 75%);
+  -webkit-backdrop-filter:blur(12px) saturate(115%);backdrop-filter:blur(12px) saturate(115%)}
+.fx-title > :not(.ft-scrim){position:relative;z-index:1}
+.fx-title .ft-kicker{display:flex;align-items:center;gap:18px;font-family:var(--mono);font-size:26px;letter-spacing:8px;
+  text-transform:uppercase;color:var(--tone)}
+.fx-title .ft-kicker::before,.fx-title .ft-kicker::after{content:'';width:56px;height:2px;background:var(--tone);
+  box-shadow:0 0 12px rgba(var(--tone-rgb),.8)}
+.fx-title .ft-line{font-family:var(--display);font-weight:800;font-size:104px;line-height:1.08;letter-spacing:-2.5px;
+  color:#fff;max-width:1640px;text-shadow:0 0 50px rgba(var(--tone-rgb),.30)}
+.fx-title .ft-line .w{display:inline-block;white-space:pre}
+/* marker sweep behind a key word (fxTitle adds it; fxMark for any other text, e.g. an interlude line) */
+.mark{position:relative;display:inline-block;isolation:isolate;padding:0 6px}
+.mark .mk-bar{position:absolute;left:-6px;right:-6px;bottom:6%;height:38%;z-index:-1;border-radius:8px;
+  background:linear-gradient(90deg, rgba(var(--tone-rgb, 55,189,248),.92), rgba(var(--tone-rgb, 55,189,248),.55));
+  box-shadow:0 0 30px rgba(var(--tone-rgb, 55,189,248),.45);transform-origin:0 50%}
+.takeover.theme-violet{--tone-rgb:183,148,255} .takeover.theme-amber{--tone-rgb:245,168,42} .takeover.theme-green{--tone-rgb:74,222,128}
+/* inside an interlude the .accent gradient text would sit on the bar: keep marked words solid white */
+.takeover .mark{color:#fff;-webkit-text-fill-color:#fff}
+.fx-title .ft-sub{font-family:var(--body);font-weight:500;font-size:34px;line-height:1.4;color:rgba(240,238,233,.80);max-width:1300px}
+.fx-title[data-pos="lower"]{align-items:flex-start;justify-content:flex-end;text-align:left;padding:0 0 130px 120px}
+.fx-title[data-pos="lower"] .ft-scrim{background:linear-gradient(20deg, rgba(6,9,14,.90) 0%, rgba(6,9,14,.55) 55%, rgba(6,9,14,.25) 100%)}
+.fx-title[data-pos="lower"] .ft-kicker::after{display:none}
+.fx-title[data-pos="top"]{justify-content:flex-start;padding-top:120px}
+
+/* ---- 3. COMMAND CHIP: what the viewer types (command, URL, path, search term) ----
+   <div id="cmd-1" class="fx-cmd clip" data-start=".." data-duration=".." data-track-index="9"
+        data-kind="Run" data-pos="top" data-ok="241.0">flutter doctor</div>
+   data-kind: the label (Type, Run, Go to, Search, Path). data-pos: top (default) | top-left |
+   top-right | bottom-right. data-ok (optional): timeline second the command succeeded (green check). */
+.fx-cmd{position:absolute;left:50%;top:52px;z-index:3;display:flex;align-items:center;gap:18px;
+  padding:16px 30px 16px 18px;border-radius:20px;white-space:nowrap;pointer-events:none;
+  background:rgba(7,11,17,.88);
+  border:1.5px solid rgba(var(--tone-rgb),.55);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16), 0 18px 50px rgba(0,0,0,.5), 0 0 34px rgba(var(--tone-rgb),.25)}
+.fx-cmd[data-pos="top-left"]{left:64px}
+.fx-cmd[data-pos="top-right"]{left:auto;right:64px}
+.fx-cmd[data-pos="bottom-right"]{left:auto;right:64px;top:auto;bottom:56px}
+.fx-cmd .cm-kind{font-family:var(--mono);font-size:16px;letter-spacing:3px;text-transform:uppercase;padding:7px 12px;
+  border-radius:9px;background:rgba(var(--tone-rgb),.16);border:1px solid rgba(var(--tone-rgb),.42);color:var(--tone-hi)}
+.fx-cmd .cm-prompt{font-family:var(--mono);font-weight:700;font-size:36px;color:var(--tone)}
+.fx-cmd .cm-text{position:relative;font-family:var(--mono);font-weight:700;font-size:38px;color:#EAF7FF;letter-spacing:-.5px}
+.fx-cmd .cm-ghost{visibility:hidden}
+.fx-cmd .cm-typed{position:absolute;left:0;top:0;white-space:pre}
+.fx-cmd .cm-caret{display:inline-block;width:3px;height:38px;margin-left:4px;vertical-align:-6px;background:var(--tone);
+  box-shadow:0 0 10px rgba(var(--tone-rgb),.9)}
+.fx-cmd .cm-ok{width:40px;height:40px;border-radius:50%;margin-left:4px;display:flex;align-items:center;justify-content:center;
+  background:rgba(74,222,128,.16);border:1.5px solid rgba(74,222,128,.75);opacity:0}
+.fx-cmd .cm-ok svg{width:24px;height:24px;fill:none;stroke:#4ADE80;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---- 4. CHECKLIST PANEL: items tick as the narrator names them (requirements, recap) ----
+   <div id="chk-1" class="fx-check clip" data-start=".." data-duration=".." data-track-index="10" data-pos="right">
+     <div class="ck-title">System check</div>
+     <div class="ck-item" data-at="52.1"><b>Windows 10 or 11, 64-bit</b><span>64-bit systems only</span></div>
+   </div>
+   data-pos: right (default) | left. Max 6 items, each <b> about 26 characters. */
+.fx-check{position:absolute;right:64px;top:50%;z-index:3;width:640px;padding:30px 34px 32px;border-radius:26px;pointer-events:none;
+  background:rgba(8,12,18,.86);
+  border:1.5px solid rgba(255,255,255,.13);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18), 0 26px 70px rgba(0,0,0,.55), 0 0 40px rgba(var(--tone-rgb),.14)}
+.fx-check[data-pos="left"]{right:auto;left:64px}
+.fx-check .ck-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.fx-check .ck-title{font-family:var(--mono);font-size:19px;letter-spacing:4px;text-transform:uppercase;color:var(--tone)}
+.fx-check .ck-count{font-family:var(--mono);font-size:19px;letter-spacing:2px;color:rgba(240,238,233,.62)}
+.fx-check .ck-item{display:grid;grid-template-columns:44px 1fr;column-gap:18px;align-items:center;padding:13px 0;
+  border-top:1px solid rgba(255,255,255,.07)}
+.fx-check .ck-item b{grid-column:2;grid-row:1;font-family:var(--display);font-weight:700;font-size:29px;line-height:1.2;color:rgba(240,238,233,.55)}
+.fx-check .ck-item > span{grid-column:2;grid-row:2;margin-top:4px;font-family:var(--body);font-weight:500;font-size:21px;color:rgba(240,238,233,.45)}
+/* the tick sits LEFT of the text, centred on both lines */
+.fx-check .ck-box{grid-column:1;grid-row:1 / span 2;align-self:center;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  border:2px solid rgba(240,238,233,.30);background:rgba(255,255,255,.03)}
+.fx-check .ck-box svg{width:22px;height:22px;fill:none;stroke:#07160F;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+.fx-check .ck-bar{margin-top:18px;height:5px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+.fx-check .ck-bar i{display:block;height:100%;width:100%;border-radius:3px;background:linear-gradient(90deg,var(--tone),#4ADE80);
+  transform-origin:0 50%;transform:scaleX(0);box-shadow:0 0 12px rgba(74,222,128,.6)}
+
+/* ---- 5. SECTION CARD: screenshot of the section, big numeral, light-sweep entrance ----
+   Add to a section card (fxSection does the motion):
+     <div class="st-num">02</div>                         outlined numeral behind the text
+     <div class="st-media"><img src="assets/cards/section-sdk.jpg" alt=""></div>
+   and the class has-media on .section-stage (text moves to a left column). */
+.takeover .st-beam{position:absolute;top:-10%;left:0;width:150px;height:120%;z-index:2;opacity:0;pointer-events:none;
+  background:linear-gradient(90deg, rgba(143,224,255,0) 0%, rgba(143,224,255,.55) 38%, #FFFFFF 50%, rgba(143,224,255,.55) 62%, rgba(143,224,255,0) 100%);
+  box-shadow:0 0 80px rgba(55,189,248,.7)}
+.st-num{position:absolute;left:96px;top:70px;font-family:var(--display);font-weight:800;font-size:380px;line-height:1;
+  letter-spacing:-12px;color:rgba(240,238,233,.06);-webkit-text-stroke:2px rgba(240,238,233,.16)}
+/* a faint fill, not transparent: hyperframes check reports transparent-fill text as text_not_painted */
+.section-stage.has-media{align-items:flex-start;padding:0 0 60px 150px}
+/* text column ends at x 900; the tilted screenshot starts at about 920 (its left edge comes forward) */
+.section-stage.has-media .st-headline{text-align:left;font-size:96px;line-height:1.04;max-width:750px;text-wrap:balance}
+.section-stage.has-media .st-sub{text-align:left;max-width:700px}
+.st-media{position:absolute;right:104px;top:50%;width:880px;height:495px;margin-top:-300px;border-radius:22px;overflow:hidden;
+  background:#000;border:1.5px solid rgba(55,189,248,.55);
+  box-shadow:0 0 0 8px rgba(255,255,255,.035), 0 0 60px rgba(55,189,248,.30), 0 44px 100px rgba(0,0,0,.65)}
+/* the 3D tilt (perspective 1800, rotateY -11, rotateX 2) is set by fxSection through GSAP, never in CSS:
+   GSAP cannot read perspective() back from a CSS transform */
+.st-media img{width:100%;height:100%;object-fit:cover;display:block;transform-origin:50% 50%}
+.st-media::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(115deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 32%, rgba(255,255,255,0) 70%, rgba(55,189,248,.10) 100%)}
+
+/* ---- 6. CARD BACKDROP IMAGE: a dim, blurred frame of the footage behind any tier-1 card ----
+   <div class="inner"><div class="bg-shot" style="background-image:url(assets/cards/hook.jpg)"></div><div class="dotgrid"></div>... */
+/* the image is blurred in the file (ffmpeg gblur, README), never with a CSS filter: see "Render safety" */
+.takeover .bg-shot{position:absolute;inset:-40px;background:center/cover no-repeat;opacity:.13}
+
+/* count-up number inside .big-num: <div class="big-num"><span class="n">10</span><small>GB</small></div> */
+.big-num .n{display:inline-block;font-variant-numeric:tabular-nums}

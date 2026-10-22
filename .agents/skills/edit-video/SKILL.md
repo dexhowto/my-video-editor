@@ -22,6 +22,10 @@ missing, propose a style from `style-library/registry.json` based on the footage
 4. Read `../cut-mistakes/SKILL.md`. Inspect candidates in context and preserve
    intentional emphasis. Record the reviewed cuts. If no mistakes need cutting,
    carry forward the silence output. Match every transcript to its actual video.
+   Normalize the final cut's audio to -16 LUFS from the repo root with
+   `node scripts/normalize-audio.mjs <cut>.mp4`. It writes `<cut>.norm.mp4`
+   with the video copied and the length unchanged, so the retimed transcript
+   still matches. Compose from the normalized file.
 5. Read `../video-storytelling/SKILL.md` for the visual arc and
    `../hyperframes-video-beats/SKILL.md` for overlays. Write a beat sheet with
    transcript anchors, one visual idea per beat, and deliberate callbacks.

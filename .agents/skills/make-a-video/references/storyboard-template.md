@@ -84,7 +84,7 @@ Used by `/make-a-video` Gate 5. Generates `<project-folder>/STORYBOARD.md` — t
 
 **Visual elements:**
 - Perspective grid floor (ambient, already on)
-- Five words, chrome gradient, Inter 96px, centered
+- Five words, chrome gradient, Space Grotesk 96px, centered
 - Hero word "hard?" scales 1× → 8× camera-dolly-through at 1.0–1.5s
 
 **Motion language:** kinetic typography, per-word stagger, final word dolly-through

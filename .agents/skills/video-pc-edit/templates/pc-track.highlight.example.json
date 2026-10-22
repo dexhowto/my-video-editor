@@ -1,0 +1,10 @@
+{
+  "video": "pc-track.mp4",
+  "output": "pc-track.highlighted.mp4",
+  "style": { "dim": 0.5, "color": "#ff0000", "border": 6, "radius": 8, "pad": 0,
+             "fadeIn": 0.5, "fadeOut": 0.4, "easeIn": "in", "easeOut": "out" },
+  "steps": [
+    { "label": "Formula bar ('scrie formula' 41.2)", "start": 41.3, "hold": 2.0, "box": [310, 1020, 2400, 70] },
+    { "label": "Cell C2 ('celula C2' 47.0)", "start": 47.1, "hold": 2.5, "box": [880, 1120, 420, 70] }
+  ]
+}

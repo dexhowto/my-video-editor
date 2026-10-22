@@ -92,9 +92,9 @@ Probe: industry · expertise level · platform they'll watch on · what should t
 - None — use MOTION_PHILOSOPHY defaults (see `style-intake.md`)
 
 **Q13. Fonts?**
-- Google Fonts names (e.g. Inter · Montserrat · JetBrains Mono · Bebas Neue · Space Grotesk)
+- Google Fonts names (e.g. Montserrat · JetBrains Mono · Bebas Neue · Space Grotesk)
 - Font file paths
-- None — use Inter + JetBrains Mono defaults
+- None — use Space Grotesk + JetBrains Mono defaults
 
 **Q14. Logo file?**
 - Path to file

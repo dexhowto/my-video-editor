@@ -38,7 +38,7 @@ Every scene has three phases. You dump everything in the build and leave nothing
 
 - **Build (0-30%)** — elements enter, staggered. Don't dump everything at once.
 - **Breathe (30-70%)** — content visible, alive with ONE ambient motion.
-- **Resolve (70-100%)** — exit or decisive end. Exits are faster than entrances.
+- **Resolve (70-100%)** — decisive end. In a multi-scene composition the content stays visible and the scene transition is the exit (SKILL.md, Scene Transitions); only the final scene, or a single-scene piece, resolves with its own exit. Exits are faster than entrances.
 
 ### Transitions are meaning
 

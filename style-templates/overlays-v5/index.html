@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Overlays v5 Template &mdash; Demo: Free Up Storage on Windows 11</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<style>
+:root{
+  --bg:#0A0E14; --deep:#07121C; --fg:#F0EEE9; --fg-dim:rgba(240,238,233,.62); --fg-faint:rgba(240,238,233,.34);
+  --accent:#37BDF8; --accent2:#F5D82A; --alert:#FF3B30; --warm:#FF8A5C; --ok:#4ADE80;
+  --display:'Plus Jakarta Sans',sans-serif; --body:'Inter',sans-serif; --mono:'Space Mono',monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:3840px;height:2160px;overflow:hidden;background:transparent;color:var(--fg);font-family:var(--body)}
+#root{position:relative;width:3840px;height:2160px;overflow:hidden;background:transparent}
+/* design canvas stays 1920x1080; scaled 2x to fill the 3840x2160 4K root so every
+   pixel value, GSAP tween, and blur radius scales together, unchanged in proportion.
+   Always author at these 1080p pixel values — never hand-author at native 4K. */
+#canvas{position:absolute;left:0;top:0;width:1920px;height:1080px;transform:scale(2);transform-origin:0 0;overflow:hidden}
+
+/* transparent base: every second not covered by a full-screen card stays alpha-transparent
+   (rendered as HEVC+alpha by default). Compositors drop real footage straight underneath —
+   no chroma keying needed. */
+#chroma{position:absolute;inset:0;background:transparent}
+
+/* full-screen opaque takeover shell (tier-1) — the shell stays transparent; the opaque fill
+   lives on .inner so it can dissolve to transparent right before the clip window ends.
+   z-index:1 is required (not decorative) — see the tier-2 .badge rule below: data-track-index
+   does NOT control visual stacking (the hyperframes skill's own docs confirm this: "does not
+   affect visual layering — use CSS z-index"), only DOM order does by default. Without explicit
+   z-index, an early tier-2 badge like badge-intro-1 would render above whichever tier-1 card
+   happens to precede it in the DOM but get hidden by any tier-1 card that comes after it —
+   confirmed by snapshot: badge-intro-1 stayed visible over hook-intro but was fully occluded
+   by agenda-demo despite identical track-index throughout. */
+.takeover{position:absolute;inset:0;z-index:1}
+.takeover .inner{position:absolute;inset:0;background:var(--bg)}
+.takeover .dotgrid{position:absolute;inset:0;opacity:.16;
+  background-image:radial-gradient(rgba(240,238,233,.5) 1.4px, transparent 1.4px);background-size:42px 42px}
+.takeover .aurora{position:absolute;left:50%;bottom:-30%;width:2200px;height:1400px;transform:translateX(-50%);
+  background:radial-gradient(ellipse at center, rgba(55,189,248,.34) 0%, rgba(55,189,248,.14) 32%, rgba(7,18,28,0) 68%);
+  filter:blur(2px)}
+.takeover .vignette{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(7,18,28,.55) 100%)}
+
+/* hook / stat-line: single big centered statement */
+.line-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.stat-line{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:1500px;text-align:center;
+  font-family:var(--display);font-weight:700;font-size:72px;line-height:1.18;letter-spacing:-1px;
+  background:linear-gradient(180deg,#FFFFFF 0%, var(--fg) 60%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 0 60px rgba(55,189,248,.35)}
+.stat-line .accent{background:linear-gradient(90deg,var(--accent),#8fe0ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat-line .accent.alert{background:linear-gradient(90deg,var(--alert),#FF8A5C);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat-line .note{display:block;font-family:var(--body);font-weight:500;font-size:30px;color:var(--fg-dim);margin-top:22px;-webkit-text-fill-color:var(--fg-dim);background:none}
+
+/* Hook intro (v3 addition, 2026-09-20): a ~20s attention-grabbing cold open, one persistent
+   card whose content morphs problem -> pivot -> solution in place (crossfades, no card cuts).
+   General/teaser framing only — specific topics still belong to the "What We'll Cover" agenda
+   below, this just earns the next 20 minutes of attention. Reuses .stat-line for the three
+   lines (already built to stack/crossfade in place) plus a hero glyph tile that swaps between
+   an alert state (problem) and a checkmark state (solution) — the same checkmark motif the
+   agenda boxes use on activation, so it primes that later payoff instead of introducing a new
+   icon language. */
+.hook-stage{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.hook-glyph-wrap{position:relative;width:160px;height:160px;margin-bottom:56px;flex-shrink:0}
+.hook-glyph{position:absolute;inset:0;border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0}
+.hook-glyph svg{width:84px;height:84px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.hook-glyph.problem{border:2px solid rgba(255,59,48,.4);background:rgba(255,59,48,.08);box-shadow:0 0 30px rgba(255,59,48,.28)}
+.hook-glyph.problem svg{stroke:var(--alert);filter:drop-shadow(0 0 10px rgba(255,59,48,.6))}
+.hook-glyph.solution{border:2px solid rgba(55,189,248,.45);background:rgba(55,189,248,.08);box-shadow:0 0 30px rgba(55,189,248,.3)}
+.hook-glyph.solution svg{stroke:var(--accent);filter:drop-shadow(0 0 10px rgba(55,189,248,.6))}
+.hook-lines{position:relative;width:1600px;height:220px}
+
+/* "What We'll Cover" agenda: centered box-grid. v3 refinement (2026-09-20) over the v2
+   vertical-row design — confirmed working and rendered on excel-contacts-to-iphone. */
+.agenda-stage{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:48px;padding:0 120px}
+.ag-kicker{font-family:var(--mono);font-size:28px;letter-spacing:8px;color:var(--accent2);text-transform:uppercase}
+.ag-title{font-family:var(--display);font-weight:800;font-size:84px;letter-spacing:-2px;text-align:center;
+  background:linear-gradient(180deg,#FFFFFF 0%, var(--fg) 55%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 0 70px rgba(55,189,248,.4)}
+.ag-title em{font-style:normal;color:var(--accent);-webkit-text-fill-color:var(--accent);background:none}
+/* max 4 boxes per row — a 5th wraps to a second centered row automatically, no hand-placement */
+.ag-grid{display:flex;flex-wrap:wrap;justify-content:center;align-content:center;gap:32px;max-width:1820px;margin:0 auto}
+.ag-box{flex:0 0 480px;min-height:340px;background:rgba(0,0,0,.8);border-radius:24px;
+  border:1px solid rgba(240,238,233,.12);padding:44px 36px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;gap:22px}
+/* icon-in-glow-tile: gives the icon a proper anchor instead of floating bare — echoes
+   style-library/02-kallaway/cards/tier1/t1-overview-iconlist.html's icon-tile pattern */
+.ag-icon{width:104px;height:104px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  border:1.5px solid rgba(55,189,248,.35);background:rgba(55,189,248,.08);box-shadow:0 0 22px rgba(55,189,248,.22)}
+.ag-icon svg{width:52px;height:52px;stroke:var(--accent);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;
+  filter:drop-shadow(0 0 8px rgba(55,189,248,.55))}
+.ag-label{font-family:var(--display);font-weight:700;font-size:36px;color:var(--fg);line-height:1.2}
+.ag-note-wrap{position:relative;width:100%;height:76px}
+.ag-note-pre,.ag-note-done{position:absolute;left:0;right:0;top:0;font-family:var(--body);font-size:23px;
+  color:var(--fg-dim);line-height:1.4}
+.ag-note-done{opacity:0;color:var(--ok)}
+
+/* section title */
+.section-stage{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px}
+.st-kicker{font-family:var(--mono);font-size:30px;letter-spacing:8px;color:var(--accent2);text-transform:uppercase}
+.st-headline{font-family:var(--display);font-weight:800;font-size:126px;letter-spacing:-3px;text-align:center;
+  background:linear-gradient(180deg,#FFFFFF 0%, var(--fg) 55%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 0 90px rgba(55,189,248,.4)}
+.st-sub{font-family:var(--body);font-size:32px;color:var(--fg-dim);max-width:1200px;text-align:center;line-height:1.5}
+.rail{position:absolute;left:50%;bottom:120px;transform:translateX(-50%);display:flex;align-items:center;gap:0}
+.rail .node{display:flex;flex-direction:column;align-items:center;gap:14px;width:340px}
+.rail .dot{width:18px;height:18px;border-radius:50%;background:rgba(240,238,233,.18);border:2px solid rgba(240,238,233,.3)}
+.rail .node.on .dot{background:var(--accent);border-color:#bfeaff;box-shadow:0 0 26px rgba(55,189,248,.8)}
+.rail .node.done .dot{background:#4ADE80;border-color:#4ADE80}
+/* --fg-dim, NOT --fg-faint: the rail sits low in the frame over the .aurora glow's
+   brightest region, where faint text measures ~2.7:1 and fails WCAG AA. Confirmed
+   failing on real builds twice before this was fixed at source (2026-09-22). */
+.rail .lbl{font-family:var(--mono);font-size:16px;letter-spacing:3px;color:var(--fg-dim);text-transform:uppercase;white-space:nowrap}
+.rail .node.on .lbl{color:var(--fg)}
+.rail .link{position:absolute;top:8px;left:170px;right:170px;height:2px;background:rgba(240,238,233,.16)}
+.rail .link-fill{position:absolute;top:8px;left:170px;height:2px;width:0;background:var(--accent);box-shadow:0 0 14px var(--accent)}
+
+/* step badge (tier-2, floats on bare transparent background). z-index:2 (> .takeover's 1) is
+   what actually keeps this above tier-1 cards — see the .takeover comment above. */
+.badge{position:absolute;left:64px;bottom:56px;max-width:1250px;padding:26px 40px 26px 34px;border-radius:22px;z-index:2;
+  background:rgba(0,0,0,.8);border:1px solid rgba(240,238,233,.12);display:flex;gap:26px;align-items:stretch}
+.badge .rail-bar{width:5px;border-radius:4px;background:var(--accent);flex:none;box-shadow:0 0 18px rgba(55,189,248,.55)}
+.badge .badge-title{font-family:var(--mono);font-size:20px;letter-spacing:3px;color:rgba(240,238,233,.94);text-transform:uppercase;display:flex;align-items:center;gap:18px}
+.badge .idx{font-size:15px;letter-spacing:2px;padding:4px 10px;border-radius:7px;background:rgba(55,189,248,.16);color:var(--accent);border:1px solid rgba(55,189,248,.35)}
+.badge .badge-sub{font-family:var(--display);font-size:39px;font-weight:700;color:var(--fg);margin-top:10px;line-height:1.2}
+.badge .badge-sub .hl{color:var(--accent)}
+/* v4: evolving badge detail lines. Each .det starts collapsed (height:0) and is grown to
+   exactly BADGE_DET_H by badgeDetails(). Fixed height, NOT height:auto — an auto-height tween
+   is not reliably reproducible when HyperFrames seeks to an arbitrary frame, and every frame
+   of a render is an arbitrary seek. Keep each detail to ONE short line (white-space:nowrap
+   makes an over-long line obvious in preview rather than silently reflowing and clipping).
+   Colour is --fg for the newest line, --fg-dim for superseded ones; never --fg-faint, which
+   fails WCAG AA on this background. */
+.badge .badge-dets{display:flex;flex-direction:column;overflow:hidden;margin-top:6px}
+.badge .det{display:flex;align-items:center;gap:15px;height:0;opacity:0;overflow:hidden;
+  font-family:var(--body);font-size:27px;font-weight:500;color:#F0EEE9;white-space:nowrap}
+.badge .det .dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--accent);
+  box-shadow:0 0 12px rgba(55,189,248,.7)}
+.badge .pips{display:flex;gap:8px;margin-top:16px}
+.badge .pips i{display:block;width:34px;height:5px;border-radius:3px;background:rgba(240,238,233,.16)}
+.badge .pips i.done{background:rgba(55,189,248,.45)}
+.badge .pips i.on{background:var(--accent);box-shadow:0 0 12px rgba(55,189,248,.7)}
+</style></head>
+<body>
+<!--
+  OVERLAYS v5 TEMPLATE — copy this whole file into a new video project, then:
+  1. Replace the demo copy/timestamps below with your own script + transcript anchors.
+  2. Re-time every data-start/data-duration against YOUR audio's real word timestamps —
+     nothing here is meant to survive unedited except the CSS system and the dissolveOut(),
+     agendaBox(), badgeDetails() and chipScramble() helpers. DESIGN.md in this same folder is the complete spec: the
+     two-tier system, every fillable text slot, the timing conventions, and the exact
+     build -> verify -> render commands. You should not need to open another project.
+  3. To add a 4th "What We'll Cover" topic box: duplicate one .ag-box block below
+     (give it a unique id), swap its icon/label/notes, then add one agendaBox() call with
+     your own fadeIn/activate timestamps — see the JS section for the pattern. Up to 4
+     boxes fit one row; a 5th wraps to a second row automatically (no layout changes needed).
+  4. #hook-intro (0-20s) ROLLS ON TOP OF your narration's existing first 20 seconds — it is
+     NOT a prepended silent segment. Do not shift your audio's data-start or any other beat's
+     timing to make room for it; leave everything else exactly where your transcript puts it.
+     The only rule: no other tier-1 element may start before 20s (same-track overlap) — tier-2
+     badges are fine starting earlier. An early-starting badge like badge-intro-1 below stays
+     visibly floating over the hook-intro card (and any tier-1 card after it) the whole time,
+     not hidden until it dissolves out — plan badge copy that reads fine alongside the
+     hook-intro's own on-screen lines, not a "reveal". This is done with explicit CSS
+     `z-index` (`.takeover{z-index:1}`, `.badge{z-index:2}` above) — `data-track-index` does
+     NOT control visual stacking on its own (the hyperframes skill's docs confirm: "does not
+     affect visual layering — use CSS z-index"); without the explicit z-index an early badge
+     would render above whichever tier-1 card happens to precede it in the DOM but get hidden
+     by any tier-1 card that comes after it in the DOM — confirmed by snapshot testing that
+     hit exactly that inconsistency before this fix.
+-->
+
+<!--
+  ============ DEMO CONTENT (fictional — replace all of it) ============
+  Every string and every timestamp below belongs to an invented tutorial,
+  "How to Free Up Storage on Windows 11", written only so this file renders as a
+  real-looking video instead of a grid of "Replace Me" placeholders. There is no
+  such project, no audio file, and no real transcript. Treat the copy as a shape
+  to imitate (length, tone, specificity), never as content to ship.
+
+  DUMMY SCRIPT + ANCHORS. This is the traceability table a real project must have:
+  every data-start / helper timestamp below comes from a word timestamp in the
+  project's transcript, not from a stopwatch. Anchor convention: enter 0.2s AFTER
+  the anchor word begins and at least 1.8s BEFORE the word the beat refers to ends.
+
+    t=0.0   (hook rolls over whatever the narrator is already saying)
+    t=3.0   "...your C: drive turns red..."           -> badge-intro-1 in
+    t=23.0  "Here's what we'll go through."           -> agenda card in
+    t=27.2  "First, Storage Sense..."                 -> ag-box-1 fades in
+    t=29.2  "...does the cleanup for you."            -> ag-box-1 activates
+    t=29.8  "Then the temp and cache files..."        -> ag-box-2 fades in
+    t=32.0  "...all of it safe to delete."            -> ag-box-2 activates
+    t=32.6  "And finally the big stuff..."            -> ag-box-3 fades in
+    t=34.8  "...apps you forgot you installed."       -> ag-box-3 activates
+    t=40.0  "Let's start with Storage Sense."         -> section title in
+    t=58.0  "Open Settings."                          -> step badge in
+    t=62.0  "Go to System, then Storage."             -> detail line 1
+    t=71.5  "Flip the Storage Sense toggle on."       -> detail line 2
+    t=82.0  "Set it to run every month."              -> detail line 3
+
+  DURATION. This file's 95s covers only the demo beats; it is not tied to a real
+  audio length, because the template ships without an <audio> element. A real
+  project's total duration is exactly its narration length — the hook-intro
+  overlays existing time rather than adding to it.
+
+  AUDIO (required in every real project, deliberately absent here). Add the
+  narration as a SIBLING of #canvas inside #root, before #canvas — an audio
+  element written with real angle brackets (spelled out here because the linter
+  parses tags even inside comments and would flag the missing file):
+
+    audio id="narration" data-start="0" src="assets/narration.wav"
+
+  Without it the render produces no audio.m4a sidecar and the render queue stops
+  after burning the full capture time. Use the supplied narration file as-is — do
+  not re-trim it.
+-->
+
+<div id="root" data-composition-id="root" data-start="0" data-duration="95" data-width="3840" data-height="2160">
+
+  <!-- narration goes HERE in a real project (sibling of #canvas, inside #root), as an
+       audio element: audio id="narration" data-start="0" src="assets/narration.wav" -->
+
+<div id="canvas">
+
+  <!-- transparent base spanning the whole composition -->
+  <div id="chroma" class="clip" data-start="0" data-duration="95" data-track-index="0"></div>
+
+  <!-- ============ TIER-1 FULL-SCREEN TAKEOVERS (track 2) ============ -->
+
+  <!-- HOOK INTRO (full-screen, 0-20s): one persistent card, content morphs problem -> pivot ->
+       solution in place. Rolls on top of the FIRST 20s of your narration audio — this is not
+       a prepended silent segment, don't shift your audio's data-start or any other beat's
+       timing to make room for it. Despite being tier-1 (opaque .inner), it does NOT visually
+       hide an early tier-2 badge like badge-intro-1 below: the .takeover/.badge z-index rule
+       (see the CSS above) keeps tier-2 always above tier-1, so that badge stays visible,
+       floating over this card, the whole time — write its copy to read fine alongside the
+       hook-intro's own lines, not as something concealed and later "revealed". General/teaser
+       framing only — specific topics stay in the agenda card below. Replace the three lines +
+       icons with your own project's copy; this card itself isn't transcript-timed (paced for
+       attention, not word-matched), only its total ~20s span needs to roll with real audio. -->
+  <div id="hook-intro" class="takeover clip" data-start="0" data-duration="20" data-track-index="2">
+    <div class="inner">
+    <div class="dotgrid"></div><div class="aurora"></div><div class="vignette"></div>
+    <div class="hook-stage">
+      <div class="hook-glyph-wrap">
+        <div class="hook-glyph problem" id="hg-problem">
+          <svg viewBox="0 0 64 64"><path d="M32 8 L59 54 H5 Z"/><line x1="32" y1="24" x2="32" y2="38"/><line x1="32" y1="45" x2="32" y2="45.1" stroke-width="4"/></svg>
+        </div>
+        <div class="hook-glyph solution" id="hg-solution">
+          <svg viewBox="0 0 64 64"><polyline points="16,34 27,45 48,20"/></svg>
+        </div>
+      </div>
+      <!-- DEMO COPY. Three beats, one card. Problem names the viewer's pain in their
+           own words; pivot is one short bridge line; solution promises a concrete,
+           measurable payoff. Keep each to ~1-2 lines at 72px — longer copy overflows
+           the 1500px .stat-line box. Put the emotional word in .accent (.alert on the
+           problem beat, plain accent blue on the solution beat). -->
+      <div class="hook-lines">
+        <div class="stat-line" id="hi-problem">Windows says <span class="accent alert">&ldquo;Low Disk Space&rdquo;</span> &mdash; and you have no idea what's eating it.</div>
+        <div class="stat-line" id="hi-pivot">Deleting random files is not the answer.</div>
+        <div class="stat-line" id="hi-solution">Ten minutes from now you'll have <span class="accent">40+ GB back</span>.<span class="note">Without touching a single personal file.</span></div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- INTRO BADGE (tier-2, bottom, on bare transparent background) — replace/duplicate as needed.
+       Starts at its own natural time (t=3, like any badge would); it renders on top of the
+       hook-intro card above it (tier-2 always z-orders above tier-1), so it's visible the whole
+       time, not hidden-then-revealed. Duration is long enough here (20s) to still be on screen
+       for a few seconds after the hook-intro dissolves out at ~20s. -->
+  <div class="badge clip" id="badge-intro-1" data-start="3" data-duration="20" data-track-index="3">
+    <div class="rail-bar"></div>
+    <div>
+      <!-- .badge-title = the video's own title (constant all video) + an .idx chip naming
+           the current section. .badge-sub = what is happening right now; put the one phrase
+           that matters in .hl. Short badge (<25s), so no detail lines — see badge-step-demo. -->
+      <div class="badge-title">Free Up Storage on Windows 11 <span class="idx">Intro</span></div>
+      <div class="badge-sub">The Setup &mdash; <span class="hl">Where Your Disk Actually Went</span></div>
+    </div>
+  </div>
+
+  <!-- "WHAT WE'LL COVER" AGENDA (v3 box-grid) — the reusable centerpiece of this template.
+       Demo has 2 topics; duplicate .ag-box + call agendaBox() to add a 3rd/4th. Starts at 23s
+       (after badge-intro-1 ends) — must start at/after 20s so it doesn't collide with
+       hook-intro on the same tier-1 track. -->
+  <div id="agenda-demo" class="takeover clip" data-start="23" data-duration="17" data-track-index="2">
+    <div class="inner">
+    <div class="dotgrid"></div><div class="aurora"></div><div class="vignette"></div>
+    <div class="agenda-stage">
+      <div class="ag-kicker">In This Video</div>
+      <div class="ag-title">What We'll <em>Cover</em></div>
+      <!-- One .ag-box per topic the intro actually previews (3 here). Each box is:
+           stroke-only 64x64 SVG icon in the glow tile -> short bold label (2-5 words,
+           wraps to 2 lines at most) -> a forward-looking .ag-note-pre that crossfades
+           into a confirmed "✓ ..." .ag-note-done when the narrator finishes that topic.
+           The -note-pre / -note-done ids MUST be "<box id>-note-pre" / "-note-done";
+           agendaBox() builds those id strings itself. -->
+      <div class="ag-grid">
+        <div class="ag-box" id="ag-box-1">
+          <div class="ag-icon">
+            <!-- shield + check: "Windows handles it for you" -->
+            <svg viewBox="0 0 64 64"><path d="M32 6l20 10v14c0 13-8.5 22-20 28C20.5 52 12 43 12 30V16z"/><polyline points="24,32 30,38 42,24"/></svg>
+          </div>
+          <div class="ag-label">Storage Sense</div>
+          <div class="ag-note-wrap" data-layout-allow-overlap>
+            <div class="ag-note-pre" id="ag-box-1-note-pre">Let Windows clean up on a schedule</div>
+            <div class="ag-note-done" id="ag-box-1-note-done">&#10003; Set to run every month</div>
+          </div>
+        </div>
+        <div class="ag-box" id="ag-box-2">
+          <div class="ag-icon">
+            <!-- lightning bolt: the fast win -->
+            <svg viewBox="0 0 64 64"><polygon points="34,6 14,36 28,36 24,58 50,28 34,28"/></svg>
+          </div>
+          <div class="ag-label">Temp &amp; Cache Files</div>
+          <div class="ag-note-wrap" data-layout-allow-overlap>
+            <div class="ag-note-pre" id="ag-box-2-note-pre">The safe-to-delete pile</div>
+            <div class="ag-note-done" id="ag-box-2-note-done">&#10003; 12 GB reclaimed in one pass</div>
+          </div>
+        </div>
+        <div class="ag-box" id="ag-box-3">
+          <div class="ag-icon">
+            <!-- stacked bars: sorting by size -->
+            <svg viewBox="0 0 64 64"><line x1="12" y1="52" x2="52" y2="52"/><rect x="16" y="30" width="10" height="18"/><rect x="31" y="18" width="10" height="30"/><rect x="46" y="38" width="6" height="10"/></svg>
+          </div>
+          <div class="ag-label">Big Files &amp; Old Apps</div>
+          <div class="ag-note-wrap" data-layout-allow-overlap>
+            <div class="ag-note-pre" id="ag-box-3-note-pre">Find what's really hogging space</div>
+            <div class="ag-note-done" id="ag-box-3-note-done">&#10003; Sorted by size, biggest first</div>
+          </div>
+        </div>
+        <!--
+        To add a 4th box, duplicate one of the blocks above with a new id (e.g. "ag-box-4"),
+        swap the icon svg/label/notes, then call agendaBox('ag-box-4', {fadeIn: X, activate: Y})
+        in the JS section below with your own transcript timestamps. A 5th box wraps to a
+        second centered row on its own — no CSS change needed.
+        -->
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- SECTION TITLE (+ progress rail) — duplicate per section, retime the rail's node states.
+       Duration is deliberately a realistic 5.5s (real builds use ~4.5-6s), not a long
+       demo-only span: an over-long demo card hides rail-timing bugs that only show up
+       at real length. Re-time the rail animation if you change this. -->
+  <div id="section-title-demo" class="takeover clip" data-start="40" data-duration="5.5" data-track-index="2">
+    <div class="inner">
+    <div class="dotgrid"></div><div class="aurora"></div><div class="vignette"></div>
+    <div class="section-stage">
+      <!-- .st-headline is 126px: two short words max, broken by hand with <br>.
+           .st-sub is one sentence saying what the viewer gets out of this section.
+           The rail carries one .node per section of the WHOLE video, in order, with
+           .on on the section starting now and .done on every section already finished
+           (duplicate this card per section and move those classes along). -->
+      <div class="st-kicker">Section 1</div>
+      <div class="st-headline">Storage<br>Sense</div>
+      <div class="st-sub">Let Windows clear out the junk on a schedule, so you never have to do this by hand again.</div>
+      <div class="rail" id="rail-demo">
+        <div class="link"></div><div class="link-fill"></div>
+        <div class="node on"><div class="dot"></div><div class="lbl">01 Storage Sense</div></div>
+        <div class="node"><div class="dot"></div><div class="lbl">02 Temp Files</div></div>
+        <div class="node"><div class="dot"></div><div class="lbl">03 Big Files</div></div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- STEP BADGE (tier-2) — one per script "Step N", covers the runtime end-to-end.
+       v4: a long badge carries .badge-dets — one .det per specific the narration names, each
+       revealed at its own transcript anchor by badgeDetails(). Add/remove .det rows freely;
+       the helper reads them in document order. Only worth doing on a badge that holds for
+       roughly 25s+ — a short badge should stay a bare title, as below in the intro badge. -->
+  <div class="badge clip" id="badge-step-demo" data-start="58" data-duration="37" data-track-index="3">
+    <div class="rail-bar"></div>
+    <div>
+      <div class="badge-title">Free Up Storage on Windows 11 <span class="idx">Section 1</span></div>
+      <div class="badge-sub">Storage Sense &mdash; <span class="hl">Step 1:</span> Turn It On</div>
+      <!-- data-layout-allow-overlap: while a .det grows from height:0 its inner text span is
+           clipped by overflow:hidden, but its raw bounding box still measures over the row above
+           for the ~0.45s of the tween. That is a measurement artefact of the clip, not a visual
+           overlap — same reason .ag-note-wrap carries the marker for its crossfade. -->
+      <!-- data-layout-allow-overflow on each .det: the reveal IS a clip — while a row grows
+           from height:0, its text is intentionally clipped by overflow:hidden, so the span
+           measures outside its container for the ~0.45s of the tween. Expected, not a bug. -->
+      <div class="badge-dets" data-layout-allow-overlap>
+        <div class="det" data-layout-allow-overflow><span class="dot"></span><span>Settings &rarr; System &rarr; Storage</span></div>
+        <div class="det" data-layout-allow-overflow><span class="dot"></span><span>Toggle Storage Sense on</span></div>
+        <div class="det" data-layout-allow-overflow><span class="dot"></span><span>Run it every month, automatically</span></div>
+      </div>
+      <div class="pips"><i class="on"></i><i></i><i></i></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+const tl = gsap.timeline({paused:true});
+
+/* Tier-1 dissolve-to-transparent exit: fade+blur the opaque .inner fill out right before
+   the clip window ends, with a hard opacity kill exactly at the boundary (required to avoid
+   stale state on non-linear seeks / the gsap_exit_missing_hard_kill lint check). */
+function dissolveOut(id, start, dur){
+  tl.to(id+' .inner', {opacity:0, scale:1.03, filter:'blur(10px)', duration:.45, ease:'power2.in'}, start+dur-.45);
+  tl.set(id+' .inner', {opacity:0}, start+dur);
+}
+
+/* Agenda box helper (v3) — encapsulates the confirmed fade-in -> pending breathing pulse ->
+   activation payoff (border/glow flip + scale pop + icon-tile color flip + note crossfade)
+   pattern so adding a topic box is one call, not eight hand-written tweens.
+   id: the .ag-box element's id, e.g. 'ag-box-1'.
+   fadeIn: when the box fades in — anchor ~0.5-1.5s ahead of the topic's first transcript word.
+   activate: when it flips to done — anchor ~0.2s after the topic's mention finishes. */
+function agendaBox(id, {fadeIn, activate}){
+  gsap.set('#'+id+'-note-done', {opacity:0});
+  tl.from('#'+id, {opacity:0, y:24, duration:.6, ease:'power3.out'}, fadeIn)
+    .to('#'+id+' .ag-icon', {boxShadow:'0 0 34px rgba(55,189,248,.4)', duration:.9, ease:'sine.inOut', yoyo:true, repeat:1}, fadeIn+0.7)
+    .to('#'+id, {borderColor:'#4ADE80', boxShadow:'0 0 32px rgba(74,222,128,.35)', duration:.35, ease:'power2.out'}, activate)
+    .to('#'+id, {scale:1.035, duration:.16, ease:'power2.out', yoyo:true, repeat:1}, activate)
+    .to('#'+id+' .ag-icon', {borderColor:'rgba(74,222,128,.55)', backgroundColor:'rgba(74,222,128,.12)', boxShadow:'0 0 26px rgba(74,222,128,.4)', duration:.35, ease:'power2.out'}, activate)
+    .to('#'+id+' .ag-icon svg', {stroke:'#4ADE80', duration:.35, ease:'power2.out'}, activate)
+    .to('#'+id+'-note-pre', {opacity:0, duration:.3, ease:'power2.out'}, activate)
+    .to('#'+id+'-note-done', {opacity:1, duration:.3, ease:'power2.out'}, activate);
+}
+
+/* Evolving badge detail lines (v4) — the one thing v4 adds over v3.
+   A tier-2 badge that holds for 25-45s while the narrator enumerates specifics goes stale:
+   the same title sits motionless for the whole span. badgeDetails() lets that badge grow a
+   short line per specific, each at its own transcript anchor, so the graphic tracks what is
+   actually being said instead of summarising it once and freezing.
+
+   Stacking, not swapping: earlier lines stay on screen and dim to --fg-dim while the newest
+   sits at full --fg, so the viewer keeps the whole list in view (it reads as accumulating
+   evidence) instead of losing each point as the next arrives. For a badge whose points are
+   genuinely mutually exclusive, change the tl.to on the previous line to fade it to opacity:0
+   and height:0 at the same timestamp — that gives swap behaviour with no other changes.
+
+   The badge is bottom-anchored (bottom:56px), so it grows UPWARD as lines land: the bottom
+   edge stays put against the frame and never walks around over the footage.
+
+   id:    the .badge element's id.
+   items: [{at, text}] in the same order as the .det rows in the markup. `text` is only a
+          readability aid for whoever edits the timeline — the visible copy lives in the
+          .det markup, so keep the two in sync. */
+const BADGE_DET_H = 42;   /* must match the .det line box in the CSS above */
+function badgeDetails(id, items){
+  const row = n => '#'+id+' .badge-dets .det:nth-of-type('+n+')';
+  /* Collapsed at rest, so seeking anywhere before a line's anchor shows it absent. */
+  gsap.set('#'+id+' .badge-dets .det', {height:0, opacity:0});
+  items.forEach((item, i) => {
+    const cur = row(i+1);
+    tl.to(cur, {height:BADGE_DET_H, opacity:1, duration:.45, ease:'power2.out'}, item.at)
+      .fromTo(cur+' .dot', {scale:0}, {scale:1, duration:.35, ease:'back.out(2)'}, item.at+0.1);
+    /* demote the previous line at the same instant, so arrival and demotion read as one move */
+    if(i > 0){
+      tl.to(row(i), {color:'rgba(240,238,233,.62)', duration:.35, ease:'power2.out'}, item.at)
+        .to(row(i)+' .dot', {backgroundColor:'rgba(240,238,233,.30)', boxShadow:'0 0 0 rgba(0,0,0,0)', duration:.35, ease:'power2.out'}, item.at);
+    }
+  });
+}
+
+/* Section-chip scramble-in (v5) — the one visual thing v5 adds over v4.
+   When a tier-2 badge arrives with a new .idx chip ("Intro" -> "Section 1"), the chip
+   decodes from seeded mono glyphs into its real label over `dur` seconds, left to right.
+   Seek-safe by construction: the text is a pure function of the proxy tween's progress
+   and a hash of the character index (never Math.random()), so any frame the renderer
+   seeks to shows the same glyphs. .badge-title is Space Mono, so the chip's width does
+   not jitter while it scrambles. Use it only where the section actually changes — a chip
+   that scrambles on every badge stops signalling anything.
+   sel:   the chip, e.g. '#badge-2-0 .idx'.
+   at:    the SAME timestamp as the badge's own entrance tween. Before `at` the chip's
+          text depends on seek history (untouched label on a fresh load, scrambled after a
+          backward seek), so it must only happen while the badge is still at opacity 0.
+   dur:   decode length; ~0.45s lets it finish as the badge settles. Under 0.3s reads as
+          a flicker, over 0.6s reads as a loading bug. */
+const CHIP_GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#/';
+function chipScramble(sel, at, dur = .45){
+  const el = document.querySelector(sel);
+  const label = el.textContent;
+  const hash = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+  const proxy = {p:0};
+  tl.fromTo(proxy, {p:0}, {p:1, duration:dur, ease:'none', onUpdate(){
+    const p = proxy.p;
+    if(p >= 1){ el.textContent = label; return; }
+    const shown = Math.floor(p * label.length);
+    const step = Math.floor(p * 12); /* glyphs re-roll 12 times across the decode */
+    el.textContent = label.split('').map((ch, i) =>
+      i < shown || ch === ' ' ? ch : CHIP_GLYPHS[Math.floor(hash(step * 31 + i) * CHIP_GLYPHS.length)]
+    ).join('');
+  }}, at);
+}
+
+/* ---- HOOK INTRO (0-20s): problem -> pivot -> solution, one persistent card ----
+   Retime the three beats against your own copy's length when you replace it; the anchors
+   below aren't transcript-derived (this card runs ahead of narration timing, purely paced
+   for attention), just keep each beat readable (~4-6s hold) and the crossfades snappy. */
+gsap.set(['#hi-problem','#hi-pivot','#hi-solution'], {opacity:0, filter:'blur(14px)'});
+gsap.set(['#hg-problem','#hg-solution'], {opacity:0, scale:.6});
+
+/* problem beat: glyph pops in with a small "friction" shake, line follows */
+tl.to('#hg-problem', {opacity:1, scale:1, duration:.6, ease:'back.out(1.6)'}, 0.3)
+  .to('#hg-problem', {x:-6, duration:.08, ease:'power1.inOut', yoyo:true, repeat:3}, 0.9)
+  .to('#hi-problem', {opacity:1, filter:'blur(0px)', y:-10, duration:.8, ease:'power4.out'}, 0.6)
+  .to('#hg-problem', {opacity:0, scale:.7, duration:.4, ease:'power2.in'}, 6.0)
+  .to('#hi-problem', {opacity:0, filter:'blur(10px)', duration:.4, ease:'power2.in'}, 6.0)
+
+/* pivot beat: text only, short bridge line, no glyph */
+  .to('#hi-pivot', {opacity:1, filter:'blur(0px)', y:-10, duration:.6, ease:'power3.out'}, 6.8)
+  .to('#hi-pivot', {opacity:0, filter:'blur(10px)', duration:.4, ease:'power2.in'}, 9.6)
+
+/* solution beat: bigger, more confident pop than the problem beat (this is the payoff) */
+  .to('#hg-solution', {opacity:1, scale:1, duration:.7, ease:'back.out(2)'}, 10.2)
+  .to('#hg-solution', {boxShadow:'0 0 46px rgba(55,189,248,.55)', duration:.8, ease:'sine.inOut', yoyo:true, repeat:1}, 10.9)
+  .to('#hi-solution', {opacity:1, filter:'blur(0px)', y:-10, duration:.8, ease:'power4.out'}, 10.6);
+dissolveOut('#hook-intro', 0, 20);
+
+/* ---- INTRO BADGE ---- */
+tl.from('#badge-intro-1', {opacity:0, y:30, duration:.7, ease:'power3.out'}, 3.2)
+  .from('#badge-intro-1 .rail-bar', {scaleY:0, transformOrigin:'50% 100%', duration:.6, ease:'power3.out'}, 3.35);
+
+/* ---- "WHAT WE'LL COVER" AGENDA ---- */
+tl.from('#agenda-demo .ag-kicker', {opacity:0, y:16, duration:.6, ease:'power2.out'}, 23.3)
+  .from('#agenda-demo .ag-title', {opacity:0, y:24, filter:'blur(10px)', duration:.8, ease:'power3.out'}, 23.5);
+/* One call per box, in the order the narrator previews the topics. Demo anchors come
+   from the dummy transcript table at the top of this file; a real build takes them from
+   the project's own word timestamps. Leave ~1.5s+ between a box's activate and the next
+   box's fadeIn so each payoff lands on its own, and keep the last activate settled well
+   before the card's dissolve starts (here 39.55 = 23 + 17 - 0.45). */
+agendaBox('ag-box-1', {fadeIn: 27.2, activate: 29.2});
+agendaBox('ag-box-2', {fadeIn: 29.8, activate: 32.0});
+agendaBox('ag-box-3', {fadeIn: 32.6, activate: 34.8});
+dissolveOut('#agenda-demo', 23, 17);
+
+/* ---- SECTION TITLE (+ progress rail) ---- */
+tl.from('#section-title-demo .st-kicker', {opacity:0, y:18, duration:.6, ease:'power2.out'}, 40.4)
+  .from('#section-title-demo .st-headline', {opacity:0, y:50, filter:'blur(18px)', duration:1.2, ease:'expo.out'}, 40.7)
+  .from('#section-title-demo .st-sub', {opacity:0, y:20, duration:.8, ease:'power2.out'}, 41.8)
+  /* Rail is the card's payload — it must be settled well before the dissolve.
+     Offsets are +1.5 / +2.4 from the card's start, NOT later: a real section
+     title runs ~4.5-6s and begins dissolving at start+dur-.45, so a rail timed
+     at +2.4 with a 3-pass pulse (the pre-2026-09-22 values) was legible for
+     under a second and the pulse was cut off mid-cycle. Keep the rail fully
+     settled by ~start+2.3 whatever duration you give the card. */
+  .from('#rail-demo .node', {opacity:0, y:14, duration:.4, stagger:.1, ease:'power2.out'}, 41.5)
+  .fromTo('#rail-demo .node.on .dot', {boxShadow:'0 0 0px rgba(55,189,248,0)'}, {boxShadow:'0 0 30px rgba(55,189,248,.9)', duration:.7, repeat:1, yoyo:true, ease:'sine.inOut'}, 42.4);
+dissolveOut('#section-title-demo', 40, 5.5);
+
+/* ---- STEP BADGE (+ v4 evolving detail lines, v5 chip scramble) ---- */
+tl.from('#badge-step-demo', {opacity:0, y:30, duration:.7, ease:'power3.out'}, 58.15)
+  .from('#badge-step-demo .rail-bar', {scaleY:0, transformOrigin:'50% 100%', duration:.6, ease:'power3.out'}, 58.3);
+/* v5: the section changed (Intro -> Section 1), so the chip decodes into its new label */
+chipScramble('#badge-step-demo .idx', 58.15);
+
+/* One entry per .det row, in document order, each at the transcript anchor where the
+   narration actually names that specific. Anchor these like any other beat: ~0.2s after
+   the phrase begins. Spread them out — the whole point is to keep a long badge alive. */
+badgeDetails('badge-step-demo', [
+  {at: 62.0, text: 'Settings -> System -> Storage'},
+  {at: 71.5, text: 'Toggle Storage Sense on'},
+  {at: 82.0, text: 'Run it every month, automatically'},
+]);
+
+window.__timelines = window.__timelines || {};
+window.__timelines['root'] = tl;
+</script>
+</body></html>

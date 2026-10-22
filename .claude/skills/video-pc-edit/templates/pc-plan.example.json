@@ -1,0 +1,15 @@
+{
+  "fps": 30,
+  "size": [3840, 2160],
+  "narration": { "files": ["original/audio/audio.mp3"],
+                 "gap": 0.0, "output": "assets/narration.wav" },
+  "output": "assets/pc-track.mp4",
+  "segments": [
+    { "label": "A open the sheet", "clip": "original/video/screen-1.mp4",
+      "in": 0.0, "out": 6.0, "start": 40.0, "freezes": [ { "at": 5.0, "dur": 2.0 } ] },
+    { "label": "B type the formula", "clip": "original/video/screen-1.mp4",
+      "in": 6.0, "out": 14.0, "start": 46.0, "lead": 0.5, "freezes": [ { "at": 13.0, "dur": 3.0 } ] },
+    { "label": "C result", "clip": "original/video/screen-1.mp4",
+      "in": 14.0, "start": 56.0 }
+  ]
+}

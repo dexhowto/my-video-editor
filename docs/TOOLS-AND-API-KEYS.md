@@ -12,6 +12,7 @@ edit. Bring your own accounts and credits, and configure only what you use.
 | Node.js 22+, npm, Git, FFmpeg with ffprobe, and Chrome/Chromium | Local editing, preview, and rendering | Install on your computer. See [setup](SETUP.md). |
 | HyperFrames and GSAP | Video compositions and animation | Installed by `npm ci`. Rendering runs locally. Some templates use online fonts or CDNs; localize selected assets for final rendering. |
 | ElevenLabs Scribe | Nate's default for speech transcription | Your own key with `speech_to_text` access and available usage. The included helper sends audio to ElevenLabs. |
+| MacWhisper (local app) | This student's default for local, offline transcription (macOS only) | Install the [MacWhisper](https://goodsnooze.gumroad.com/l/macwhisper) app once. No API key, no cloud usage/billing — transcribes entirely on-device. The included `scripts/mw-transcribe.py` adapter drives it and normalizes its output for this kit. |
 | OpenAI Whisper API | Alternative cloud transcription | Your own OpenAI API key and API billing. Ask the assistant to configure the call and normalize its word timestamps. |
 | Local Whisper or whisper.cpp | Alternative transcription on your computer | Separate runtime and model installation. No cloud transcription key; needs model downloads, disk space, and local compute. |
 | Kie.ai | Optional generated moving B-roll, images, and other supported assets | Your own account, key, and credits. Existing footage and supplied assets can be used instead. |
@@ -33,6 +34,43 @@ The helper writes word-level JSON beside the input. Reuse a verified transcript
 instead of paying to transcribe the same take again. See the official
 [Scribe API documentation](https://elevenlabs.io/docs/api-reference/speech-to-text/convert)
 for current model options and usage details.
+
+## MacWhisper: this student's local default
+
+**Default for this student's projects going forward: always use the local
+MacWhisper app for transcription, not ElevenLabs, OpenAI, or whisper.cpp,**
+unless a specific project needs otherwise. It runs entirely on-device (macOS
+only) — no API key, no per-call cost, no upload of raw audio to a cloud
+service.
+
+1. Install [MacWhisper](https://goodsnooze.gumroad.com/l/macwhisper) once
+   and open it at least once so its CLI (`mw`) and a transcription model are
+   available.
+2. Run the bundled adapter against the project's concatenated narration
+   audio (or raw video):
+   ```sh
+   python3 scripts/mw-transcribe.py video-projects/my-video/assets/narration.wav
+   ```
+   This launches MacWhisper if it isn't already running, transcribes via its
+   CLI, and writes a `.kit.json` file next to the input already normalized
+   into this kit's word-level-seconds format (see below) — no manual
+   conversion step needed. Pass `--output <path>` to control where the kit
+   JSON lands, or `--model <engine:model-id>` to override the app's
+   currently selected model.
+3. Always sanity-check the resulting transcript's text against the actual
+   script/expected content before trusting it for cutting or beat-timing.
+   If narration was supplied as multiple raw segments, don't assume their
+   file numbering matches script order — verify by reading the transcribed
+   text itself, since concatenating segments in the wrong order produces a
+   transcript that's internally consistent but scrambled relative to the
+   script.
+
+MacWhisper's CLI needs its GUI app running and can occasionally hang under
+load (e.g. several transcription jobs queued across parallel projects at
+once) — if `mw-transcribe.py` appears stuck with no CPU progress, check
+whether the MacWhisper app itself is wedged or has other jobs queued before
+assuming the script is broken; stopping and retrying once the queue clears
+usually resolves it.
 
 ## Whisper and other transcription alternatives
 

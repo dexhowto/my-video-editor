@@ -51,7 +51,7 @@ Position every element where it should be at its **most visible moment** — the
 1. **Identify the hero frame** for each scene — the moment when the most elements are simultaneously visible. This is the layout you build.
 2. **Write static CSS** for that frame. The `.scene-content` container MUST fill the full scene using `width: 100%; height: 100%; padding: Npx;` with `display: flex; flex-direction: column; gap: Npx; box-sizing: border-box`. Use padding to push content inward — NEVER `position: absolute; top: Npx` on a content container. Absolute-positioned content containers overflow when content is taller than the remaining space. Reserve `position: absolute` for decoratives only.
 3. **Add entrances with `gsap.from()`** — animate FROM offscreen/invisible TO the CSS position. The CSS position is the ground truth; the tween describes the journey to get there.
-4. **Add exits with `gsap.to()`** — animate TO offscreen/invisible FROM the CSS position.
+4. **Add exits with `gsap.to()`** — animate TO offscreen/invisible FROM the CSS position. Only for elements that leave mid-scene (element A makes room for element B). Never empty a scene right before its transition: see Scene Transitions rule 3.
 
 ### Example
 
@@ -199,7 +199,7 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 
 **Deterministic:** No `Math.random()`, `Date.now()`, or time-based logic. Use a seeded PRNG if you need pseudo-random values (e.g. mulberry32).
 
-**GSAP:** Only animate visual properties (`opacity`, `x`, `y`, `scale`, `rotation`, `color`, `backgroundColor`, `borderRadius`, transforms). Do NOT animate `visibility`, `display`, or call `video.play()`/`audio.play()`.
+**GSAP:** Only animate visual properties (`opacity`, `x`, `y`, `scale`, `rotation`, `color`, `backgroundColor`, `borderRadius`, transforms). Do NOT animate `display`, do NOT touch `visibility` on a timed clip element (the framework owns clip visibility), and do NOT call `video.play()`/`audio.play()`. Setting `visibility: hidden` on a non-clip child is fine: the caption hard kill in [captions.md](references/captions.md) and GSAP `autoAlpha` both do this.
 
 **Animation conflicts:** Never animate the same property on the same element from multiple timelines simultaneously.
 
@@ -227,8 +227,8 @@ Every multi-scene composition MUST follow ALL of these rules. Violating any one 
 
 1. **ALWAYS use transitions between scenes.** No jump cuts. No exceptions.
 2. **ALWAYS use entrance animations on every scene.** Every element animates IN via `gsap.from()`. No element may appear fully-formed. If a scene has 5 elements, it needs 5 entrance tweens.
-3. **NEVER use exit animations** except on the final scene. This means: NO `gsap.to()` that animates opacity to 0, y offscreen, scale to 0, or any other "out" animation before a transition fires. The transition IS the exit. The outgoing scene's content MUST be fully visible at the moment the transition starts.
-4. **Final scene only:** The last scene may fade elements out (e.g., fade to black). This is the ONLY scene where `gsap.to(..., { opacity: 0 })` is allowed.
+3. **NEVER use exit animations** except on the final scene. This means: NO `gsap.to()` that animates opacity to 0, y offscreen, scale to 0, or any other "out" animation to clear the scene before a transition fires. The transition IS the exit. The outgoing scene's content MUST be fully visible at the moment the transition starts. Exception: a mid-scene swap, where element A leaves so element B can take its place (Layout Before Animation, step 4), is not a scene exit. It must finish well before the transition, and B must still be visible when the transition starts.
+4. **Final scene only:** The last scene may fade everything out (e.g., fade to black). It is the only scene that may end empty.
 
 **WRONG — exit animation before transition:**
 

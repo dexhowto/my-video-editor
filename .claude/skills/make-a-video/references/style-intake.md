@@ -27,11 +27,11 @@ Keep accent discipline tight. MOTION_PHILOSOPHY §0 Law 7: ≤5 symbolic colors 
 
 ### Fonts
 
-- **Headlines / kinetic type:** Inter (Google Fonts), weight 700
+- **Headlines / kinetic type:** Space Grotesk, weight 700
 - **Mono (code, numbers, terminal):** JetBrains Mono, weight 500
-- Load via `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">`
+- Do not load fonts from a CDN (no Google Fonts `<link>`). Write `font-family` in CSS; the HyperFrames compiler embeds supported fonts (see the hyperframes skill's `references/typography.md`). Inter is on that file's banned list.
 
-Variations allowed: Space Grotesk or Geist for a tech feel, Instrument Serif for editorial, Bebas Neue for impact. **One display family plus one mono.** Two sans-serifs in the same piece almost always looks wrong.
+Variations allowed: Geist for a tech feel, Instrument Serif for editorial, Bebas Neue for impact. **One display family plus one mono.** Two sans-serifs in the same piece almost always looks wrong.
 
 ### Textures (always on, even with custom palette)
 

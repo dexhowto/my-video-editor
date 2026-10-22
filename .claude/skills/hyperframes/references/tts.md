@@ -30,6 +30,10 @@ npx hyperframes tts "Your script here" --voice af_nova --output narration.wav
 npx hyperframes tts script.txt --voice bf_emma --output narration.wav
 ```
 
+Normalize the result before use (two-pass, -16 LUFS, length unchanged), from
+the repo root: `node scripts/normalize-audio.mjs <project>/narration.wav`. It
+writes `narration.norm.wav`.
+
 In compositions:
 
 ```html

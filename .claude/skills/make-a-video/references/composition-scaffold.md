@@ -23,7 +23,7 @@ Used by `/make-a-video` Gate 6. Every sub-composition follows this pattern.
       place-items: center;
     }
     [data-composition-id="scene-01-hook"] .word {
-      font-family: 'Inter', sans-serif;
+      font-family: 'Space Grotesk', sans-serif;
       font-weight: 700;
       font-size: 96px;
       background: linear-gradient(180deg, #fff 0%, #999 100%);
@@ -128,7 +128,7 @@ Captions go OUTSIDE the master composition `<div>` in `index.html`, each with `d
     border-radius: 14px;
     background: rgba(10, 8, 5, 0.55);
     backdrop-filter: blur(8px);
-    font: 500 28px/1.3 Inter, sans-serif;
+    font: 500 28px/1.3 'Space Grotesk', sans-serif;
     color: #fff;
   }
 </style>

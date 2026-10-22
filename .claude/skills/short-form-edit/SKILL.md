@@ -266,7 +266,9 @@ human reactions where they support the story.
    use genuine rendered 3D when the metaphor needs it. The framework is a tool,
    not an aesthetic. Preserve editable source.
 4. Source or generate an instrumental bed with clear narration space. Save its
-   provenance. Normalize the voice before mixing; start the bed roughly 14-20 dB
+   provenance. Normalize the voice before mixing with
+   `node scripts/normalize-audio.mjs <voice-file>` (two-pass, -16 LUFS, writes
+   `<stem>.norm<ext>`, length unchanged); start the bed roughly 14-20 dB
    below voice, then adjust to the actual track. Duck under speech, fade cleanly,
    and measure the final mix. Aim around -16 LUFS and <= -1 dBTP, adapting to
    source dynamics rather than crushing them.

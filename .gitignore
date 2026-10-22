@@ -8,6 +8,7 @@
 node_modules/
 raw-media/
 video-projects/
+projects-full/
 renders/
 **/renders/
 **/assets/
@@ -33,6 +34,8 @@ Thumbs.db
 .codex/auth.json
 .codex/sessions/
 .codex/history.jsonl
+render-queue.txt
+render-queue.log
 
 # Deliberately public synthetic timing data, without media.
 !examples/short-form/assets/
@@ -42,3 +45,9 @@ Thumbs.db
 !examples/showcase/curiosity-reel-2.mp4
 !examples/showcase/curiosity-reel-1.mp4
 !examples/showcase/ais-live-ad.mp4
+
+# Highlight-video footage, plans, previews, and renders stay local.
+movies-highlight/
+
+# Build lock for the /video-* skills (scripts/video-busy.mjs).
+.video-build.lock

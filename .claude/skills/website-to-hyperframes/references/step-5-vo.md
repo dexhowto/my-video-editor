@@ -14,6 +14,10 @@ Pick the voice that sounds most natural and conversational. Listen for pacing â€
 
 Generate the full script as `narration.wav` (or `.mp3`) in the project directory.
 
+Normalize it so it is easy to hear (two-pass, -16 LUFS, length unchanged). From
+the repo root: `node scripts/normalize-audio.mjs video-projects/<slug>/narration.wav`.
+It writes `narration.norm.wav`. Transcribe and compose from the normalized file.
+
 ## Transcribe for word-level timestamps
 
 ```bash

@@ -26,7 +26,7 @@ Named visual identities for HyperFrames videos. Each style is grounded in a real
 **Mood:** Clinical, precise | **Best for:** SaaS dashboards, developer tools, APIs, metrics
 
 - Black (`#1a1a1a`), white, ONE accent — electric blue (`#0066FF`) or amber (`#FFB300`)
-- Helvetica or Inter Bold for headlines, Regular for labels. Numbers large (80–120px)
+- Helvetica Bold for headlines, Regular for labels. Numbers large (80–120px)
 - Grid-locked compositions. Every element snaps to an invisible 12-column grid
 - Animated counters count up from 0. Hard cuts, no decorative transitions
 - Transitions: Cinematic Zoom or SDF Iris (precise, geometric)

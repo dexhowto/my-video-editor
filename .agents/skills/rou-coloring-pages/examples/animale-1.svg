@@ -1,0 +1,39 @@
+<!--META {"title":"Elefănțel cu umbrelă în ploaie","desc":"Planșă de colorat cu un elefănțel vesel care își ține umbrela cu trompa pe o zi ploioasă, cu bălți și picături de ploaie.","tags":"animale, elefant, ploaie, umbrela","cats":[1]}-->
+<!-- rain -->
+<g fill="none" stroke-width="6">
+  <path d="M90 140 l-14 40 M170 300 l-14 40 M80 420 l-14 40 M200 520 l-14 40 M110 660 l-14 40 M250 120 l-14 40
+           M960 360 l-14 40 M880 520 l-14 40 M970 620 l-14 40 M880 720 l-14 40 M300 230 l-14 40"/>
+</g>
+<!-- puddles -->
+<ellipse cx="200" cy="960" rx="130" ry="26"/>
+<ellipse cx="850" cy="965" rx="120" ry="22"/>
+<!-- ears -->
+<ellipse cx="320" cy="520" rx="125" ry="145"/>
+<ellipse cx="704" cy="520" rx="125" ry="145"/>
+<path d="M300 430 C240 470 240 580 310 620 M724 430 C784 470 784 580 714 620" fill="none" stroke-width="6"/>
+<!-- body -->
+<ellipse cx="512" cy="770" rx="205" ry="180"/>
+<path d="M440 640 C420 720 430 820 470 880 M584 640 C604 720 594 820 554 880" fill="none" stroke-width="6"/>
+<!-- feet -->
+<ellipse cx="410" cy="925" rx="85" ry="50"/>
+<ellipse cx="614" cy="925" rx="85" ry="50"/>
+<path d="M370 945 q12 -18 24 0 M405 950 q12 -18 24 0 M440 945 q12 -18 24 0 M580 945 q12 -18 24 0 M615 950 q12 -18 24 0 M650 945 q12 -18 24 0" fill="none" stroke-width="5"/>
+<!-- head -->
+<ellipse cx="512" cy="490" rx="160" ry="145"/>
+<ellipse cx="455" cy="460" rx="20" ry="26" fill="#111" stroke="none"/>
+<ellipse cx="569" cy="460" rx="20" ry="26" fill="#111" stroke="none"/>
+<circle cx="449" cy="451" r="7" stroke="none"/>
+<circle cx="563" cy="451" r="7" stroke="none"/>
+<path d="M425 420 q30 -20 55 -5 M544 415 q25 -15 55 5" fill="none" stroke-width="6"/>
+<!-- trunk raised to the right -->
+<path d="M544 560 C548 620 600 640 650 600 C700 560 725 500 742 430 L792 442 C770 540 730 640 660 680 C570 740 470 700 480 560 Z"/>
+<path d="M520 640 q10 10 24 8 M575 670 q14 4 26 -4 M640 650 q12 -6 18 -16 M700 590 q10 -6 14 -18 M735 510 q8 -6 12 -16" fill="none" stroke-width="5"/>
+<path d="M420 560 q-15 30 5 50 M604 560 q15 30 -5 50" fill="none" stroke-width="5"/>
+<!-- umbrella -->
+<path d="M767 436 V200" fill="none" stroke-width="9"/>
+<path d="M600 210 Q610 70 767 60 Q924 70 934 210 Q906 185 878 210 Q850 185 822 210 Q795 185 767 210 Q740 185 712 210 Q684 185 656 210 Q628 185 600 210 Z"/>
+<path d="M767 60 Q720 120 712 205 M767 60 Q814 120 822 205 M767 60 Q680 110 656 205 M767 60 Q854 110 878 205" fill="none" stroke-width="5"/>
+<path d="M767 60 V35" fill="none" stroke-width="9"/>
+<circle cx="767" cy="30" r="10"/>
+<!-- rain drops on ground -->
+<path d="M130 880 q-12 22 0 30 q12 -8 0 -30 Z M900 860 q-12 22 0 30 q12 -8 0 -30 Z" stroke-width="5"/>

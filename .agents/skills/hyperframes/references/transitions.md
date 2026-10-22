@@ -8,7 +8,7 @@ These are non-negotiable for every multi-scene composition:
 
 1. **Every composition uses transitions.** No exceptions. Scenes without transitions feel like jump cuts.
 2. **Every scene uses entrance animations.** Elements animate IN via `gsap.from()` — opacity, position, scale, etc. No scene should pop fully-formed onto screen.
-3. **Exit animations are BANNED** except on the final scene. Do NOT use `gsap.to()` to animate elements out before a transition fires. The transition IS the exit. Outgoing scene content must be fully visible when the transition starts — the transition handles the visual handoff.
+3. **Exit animations are BANNED** except on the final scene. Do NOT use `gsap.to()` to animate elements out before a transition fires. The transition IS the exit. Outgoing scene content must be fully visible when the transition starts — the transition handles the visual handoff. A mid-scene swap (element A leaves so B can take its place, finished well before the transition) is not a scene exit; see SKILL.md, Scene Transitions rule 3.
 4. **Final scene exception:** The last scene MAY fade elements out (e.g., fade to black at the end of the composition). This is the only scene where exit animations are allowed.
 
 ## Energy → Primary Transition

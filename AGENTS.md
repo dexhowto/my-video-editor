@@ -12,6 +12,14 @@ Use `$edit-video` in Codex, `/edit-video` in Claude Code, or natural language.
 Model and permission choices belong to the user; `.codex/config.toml` only adds
 document loading defaults. Work locally unless the user requests subagents.
 
+## Video data location
+
+Video data lives outside the kit, in `../VideoData/`. The folders `video-projects/`,
+`projects-full/`, and `movies-highlight/` in the kit root are symlinks into
+`../VideoData/`, so keep using those relative paths. The tracked example projects
+under `video-projects/` are marked skip-worktree; their working copies are in
+`../VideoData/video-projects/`.
+
 ## Start and route
 
 Read `README.md` for installation and `docs/WORKFLOW.md` for a complete edit.
@@ -33,8 +41,17 @@ For one stage, load the matching local skill:
 | Select or extend styles and templates | `style-library` |
 | HTML compositions and media timing | `hyperframes` |
 | Preview, lint, and rendering | `hyperframes-cli` |
+| Queue or start a final render (one at a time) | `render-video` |
 | Timeline animation | `gsap` |
 | Install HyperFrames catalog blocks | `hyperframes-registry` |
+| Kids' coloring pages: draw, render, publish to rou.ro | `rou-coloring-pages` |
+| Highlight boxes with spotlight dim on screen recordings | `highlight-video` |
+| iPhone recordings in a phone frame, synced to narration (4K) | `video-iphone-edit` |
+| PC / desktop screen recordings with highlights and zoom on data (4K) | `video-pc-edit` |
+| iPhone recordings first, then PC recordings, in one video (4K) | `video-iphone-pc-edit` |
+| Adapt script to recorded video, track clicks/flow, and flag missing footage | `video-process-script` |
+| Full tutorial deploy: new project from demo, script check, final script, VoiceStudio audio, build, YouTube description, thumbnail (task board) | `video-full-deploy` |
+| Generate a voice MP3 with the Fish Audio Drama 3 elite voice (10000-char limit) | `audio-elite` |
 
 Before a creative session read `MOTION_PHILOSOPHY.md` and the project's DESIGN.md.
 The philosophy's fast sizzle pacing is a style reference. Give educational speech
@@ -62,7 +79,10 @@ Before choosing a transcription, asset-generation, or voiceover service, read
 `docs/TOOLS-AND-API-KEYS.md` and check the user's provider choice and local setup.
 ElevenLabs Scribe is Nate's default; honor requests for OpenAI Whisper, local
 Whisper, or another provider. Normalize verified word timestamps for the cutting
-tools. The included transcription script is ElevenLabs-only. Kie.ai is optional
+tools. Normalize the final voice track (narration, TTS, or edited talking-head
+video) to -16 LUFS with `node scripts/normalize-audio.mjs <file>` before composing;
+it writes `<stem>.norm<ext>` and keeps the length. The `/video-*` track builders
+do this automatically. The included transcription script is ElevenLabs-only. Kie.ai is optional
 and needs a configured integration and credits. Reuse existing transcripts and
 assets; make any unapproved uploads or paid calls concrete before asking.
 

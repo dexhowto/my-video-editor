@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Album foto partajat pe iPhone</title>
+<script src="assets/gsap.min.js"></script>
+<!-- overlays-fx kit (callouts, on-screen statements, command chips, checklists, section cards):
+     copy style-templates/overlays-v5/fx/overlays-fx.css + .js into assets/ (step 1). -->
+<link rel="stylesheet" href="assets/overlays-fx.css">
+<script src="assets/overlays-fx.js"></script>
+<style>
+:root{
+  --bg:#0A0E14; --deep:#07121C; --fg:#F0EEE9; --fg-dim:rgba(240,238,233,.62); --fg-faint:rgba(240,238,233,.34);
+  --accent:#37BDF8; --accent2:#F5D82A; --alert:#FF3B30; --warm:#FF8A5C; --ok:#4ADE80;
+  --display:'Plus Jakarta Sans',sans-serif; --body:'Inter',sans-serif; --mono:'Space Mono',monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:3840px;height:2160px;overflow:hidden;background:transparent;color:var(--fg);font-family:var(--body)}
+#root{position:relative;width:3840px;height:2160px;overflow:hidden;background:transparent}
+/* design canvas stays 1920x1080; scaled 2x to fill the 3840x2160 4K root so every
+   pixel value, GSAP tween, and blur radius scales together, unchanged in proportion.
+   Always author at these 1080p pixel values — never hand-author at native 4K. */
+#canvas{position:absolute;left:0;top:0;width:1920px;height:1080px;transform:scale(2);transform-origin:0 0;overflow:hidden}
+
+/* transparent base: every second not covered by a full-screen card stays alpha-transparent
+   (rendered as HEVC+alpha by default). Compositors drop real footage straight underneath —
+   no chroma keying needed. */
+#chroma{position:absolute;inset:0;background:transparent}
+
+/* full-screen opaque takeover shell (tier-1) — the shell stays transparent; the opaque fill
+   lives on .inner so it can dissolve to transparent right before the clip window ends.
+   z-index:1 is required (not decorative) — see the tier-2 .badge rule below: data-track-index
+   does NOT control visual stacking (the hyperframes skill's own docs confirm this: "does not
+   affect visual layering — use CSS z-index"), only DOM order does by default. Without explicit
+   z-index, an early tier-2 badge like badge-intro-1 would render above whichever tier-1 card
+   happens to precede it in the DOM but get hidden by any tier-1 card that comes after it —
+   confirmed by snapshot: badge-intro-1 stayed visible over hook-intro but was fully occluded
+   by agenda-demo despite identical track-index throughout. */
+.takeover{position:absolute;inset:0;z-index:2}
+.takeover .inner{position:absolute;inset:0;background:var(--bg)}
+.takeover .dotgrid{position:absolute;inset:0;opacity:.16;
+  background-image:radial-gradient(rgba(240,238,233,.5) 1.4px, transparent 1.4px);background-size:42px 42px}
+.takeover .aurora{position:absolute;left:50%;bottom:-30%;width:2200px;height:1400px;transform:translateX(-50%);
+  background:radial-gradient(ellipse at center, rgba(55,189,248,.34) 0%, rgba(55,189,248,.14) 32%, rgba(7,18,28,0) 68%);
+  filter:blur(2px)}
+.takeover .vignette{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(7,18,28,.55) 100%)}
+
+/* hook / stat-line: single big centered statement */
+.line-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.stat-line{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:1500px;text-align:center;
+  font-family:var(--display);font-weight:700;font-size:72px;line-height:1.18;letter-spacing:-1px;
+  background:linear-gradient(180deg,#FFFFFF 0%, var(--fg) 60%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 0 60px rgba(55,189,248,.35)}
+.stat-line .accent{background:linear-gradient(90deg,var(--accent),#8fe0ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat-line .accent.alert{background:linear-gradient(90deg,var(--alert),#FF8A5C);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat-line .note{display:block;font-family:var(--body);font-weight:500;font-size:30px;color:var(--fg-dim);margin-top:22px;-webkit-text-fill-color:var(--fg-dim);background:none}
+
+/* Hook intro (v3 addition, 2026-09-20): a ~20s attention-grabbing cold open, one persistent
+   card whose content morphs problem -> pivot -> solution in place (crossfades, no card cuts).
+   General/teaser framing only — specific topics still belong to the "What We'll Cover" agenda
+   below, this just earns the next 20 minutes of attention. Reuses .stat-line for the three
+   lines (already built to stack/crossfade in place) plus a hero glyph tile that swaps between
+   an alert state (problem) and a checkmark state (solution) — the same checkmark motif the
+   agenda boxes use on activation, so it primes that later payoff instead of introducing a new
+   icon language. */
+.hook-stage{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.hook-glyph-wrap{position:relative;width:160px;height:160px;margin-bottom:56px;flex-shrink:0}
+.hook-glyph{position:absolute;inset:0;border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0}
+.hook-glyph svg{width:84px;height:84px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.hook-glyph.problem{border:2px solid rgba(255,59,48,.4);background:rgba(255,59,48,.08);box-shadow:0 0 30px rgba(255,59,48,.28)}
+.hook-glyph.problem svg{stroke:var(--alert);filter:drop-shadow(0 0 10px rgba(255,59,48,.6))}
+.hook-glyph.solution{border:2px solid rgba(55,189,248,.45);background:rgba(55,189,248,.08);box-shadow:0 0 30px rgba(55,189,248,.3)}
+.hook-glyph.solution svg{stroke:var(--accent);filter:drop-shadow(0 0 10px rgba(55,189,248,.6))}
+.hook-lines{position:relative;width:1600px;height:220px}
+
+/* "What We'll Cover" agenda: centered box-grid. v3 refinement (2026-09-20) over the v2
+   vertical-row design — confirmed working and rendered on excel-contacts-to-iphone. */
+.agenda-stage{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:48px;padding:0 120px}
+.ag-kicker{font-family:var(--mono);font-size:28px;letter-spacing:8px;color:var(--accent2);text-transform:uppercase}
+.ag-title{font-family:var(--display);font-weight:800;font-size:84px;letter-spacing:-2px;text-align:center;
+  background:linear-gradient(180deg,#FFFFFF 0%, var(--fg) 55%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 0 70px rgba(55,189,248,.4)}
+.ag-title em{font-style:normal;color:var(--accent);-webkit-text-fill-color:var(--accent);background:none}
+/* max 4 boxes per row — a 5th wraps to a second centered row automatically, no hand-placement */
+.ag-grid{display:flex;flex-wrap:wrap;justify-content:center;align-content:center;gap:32px;max-width:1820px;margin:0 auto}
+.ag-box{flex:0 0 480px;min-height:340px;background:rgba(0,0,0,.8);border-radius:24px;
+  border:1px solid rgba(240,238,233,.12);padding:44px 36px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;gap:22px}
+/* icon-in-glow-tile: gives the icon a proper anchor instead of floating bare — echoes
+   style-library/02-kallaway/cards/tier1/t1-overview-iconlist.html's icon-tile pattern */
+.ag-icon{width:104px;height:104px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  border:1.5px solid rgba(55,189,248,.35);background:rgba(55,189,248,.08);box-shadow:0 0 22px rgba(55,189,248,.22)}
+.ag-icon svg{width:52px;height:52px;stroke:var(--accent);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;
+  filter:drop-shadow(0 0 8px rgba(55,189,248,.55))}
+.ag-label{font-family:var(--display);font-weight:700;font-size:36px;color:var(--fg);line-height:1.2}
+.ag-note-wrap{position:relative;width:100%;height:76px}
+.ag-note-pre,.ag-note-done{position:absolute;left:0;right:0;top:0;font-family:var(--body);font-size:23px;
+  color:var(--fg-dim);line-height:1.4}
+.ag-note-done{opacity:0;color:var(--ok)}
+
+/* section title */
+.section-stage{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px}
+.st-kicker{font-family:var(--mono);font-size:30px;letter-spacing:8px;color:var(--accent2);text-transform:uppercase}
+.st-headline{font-family:var(--display);font-weight:800;font-size:126px;letter-spacing:-3px;text-align:center;
+  background:linear-gradient(180deg,#FFFFFF 0%, var(--fg) 55%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 0 90px rgba(55,189,248,.4)}
+.st-sub{font-family:var(--body);font-size:32px;color:var(--fg-dim);max-width:1200px;text-align:center;line-height:1.5}
+.rail{position:absolute;left:50%;bottom:120px;transform:translateX(-50%);display:flex;align-items:center;gap:0}
+.rail .node{display:flex;flex-direction:column;align-items:center;gap:14px;width:340px}
+.rail .dot{width:18px;height:18px;border-radius:50%;background:rgba(240,238,233,.18);border:2px solid rgba(240,238,233,.3)}
+.rail .node.on .dot{background:var(--accent);border-color:#bfeaff;box-shadow:0 0 26px rgba(55,189,248,.8)}
+.rail .node.done .dot{background:#4ADE80;border-color:#4ADE80}
+/* --fg-dim, NOT --fg-faint: the rail sits low in the frame over the .aurora glow's
+   brightest region, where faint text measures ~2.7:1 and fails WCAG AA. Confirmed
+   failing on real builds twice before this was fixed at source (2026-09-22). */
+.rail .lbl{font-family:var(--mono);font-size:16px;letter-spacing:3px;color:var(--fg-dim);text-transform:uppercase;white-space:nowrap}
+.rail .node.on .lbl{color:var(--fg)}
+.rail .link{position:absolute;top:8px;left:170px;right:170px;height:2px;background:rgba(240,238,233,.16)}
+.rail .link-fill{position:absolute;top:8px;left:170px;height:2px;width:0;background:var(--accent);box-shadow:0 0 14px var(--accent)}
+
+/* step badge (tier-2, floats on bare transparent background). z-index:3 (> .takeover's 2) is
+   what actually keeps this above tier-1 cards — see the .takeover comment above. */
+.badge{position:absolute;left:64px;bottom:56px;max-width:672px;padding:26px 40px 26px 34px;border-radius:22px;z-index:3;
+  background:rgba(8,12,18,.86);border:1px solid rgba(240,238,233,.13);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16), 0 18px 50px rgba(0,0,0,.45);
+  display:flex;gap:26px;align-items:stretch}
+.badge .rail-bar{width:5px;border-radius:4px;background:var(--accent);flex:none;box-shadow:0 0 18px rgba(55,189,248,.55)}
+.badge .badge-title{font-family:var(--mono);font-size:20px;letter-spacing:3px;color:rgba(240,238,233,.94);text-transform:uppercase;display:flex;align-items:center;gap:18px}
+.badge .idx{font-size:15px;letter-spacing:2px;padding:4px 10px;border-radius:7px;background:rgba(55,189,248,.16);color:var(--accent);border:1px solid rgba(55,189,248,.35)}
+.badge .badge-sub{font-family:var(--display);font-size:39px;font-weight:700;color:var(--fg);margin-top:10px;line-height:1.2}
+.badge .badge-sub .hl{color:var(--accent)}
+/* v4: evolving badge detail lines. Each .det starts collapsed (height:0) and is grown to
+   exactly BADGE_DET_H by badgeDetails(). Fixed height, NOT height:auto — an auto-height tween
+   is not reliably reproducible when HyperFrames seeks to an arbitrary frame, and every frame
+   of a render is an arbitrary seek. Keep each detail to ONE short line (white-space:nowrap
+   makes an over-long line obvious in preview rather than silently reflowing and clipping).
+   Colour is --fg for the newest line, --fg-dim for superseded ones; never --fg-faint, which
+   fails WCAG AA on this background. */
+.badge .badge-dets{display:flex;flex-direction:column;overflow:hidden;margin-top:6px}
+.badge .det{display:flex;align-items:center;gap:15px;height:0;opacity:0;overflow:hidden;
+  font-family:var(--body);font-size:27px;font-weight:500;color:#F0EEE9;white-space:nowrap}
+.badge .det .dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--accent);
+  box-shadow:0 0 12px rgba(55,189,248,.7)}
+.badge .pips{display:flex;gap:8px;margin-top:16px}
+.badge .pips i{display:block;width:34px;height:5px;border-radius:3px;background:rgba(240,238,233,.16)}
+.badge .pips i.done{background:rgba(55,189,248,.45)}
+.badge .pips i.on{background:var(--accent);box-shadow:0 0 12px rgba(55,189,248,.7)}
+
+/* 4 agenda boxes in one row: the stage's 120px side padding leaves 1680px, so
+   4 x 480px boxes (template default) wrap 3+1 and push the title off-frame. */
+.ag-box{flex:0 0 390px;padding:40px 28px}
+/* ---- video-iphone-edit: opaque background + phone stack ----
+   Background image on the base layer (the output is opaque, unlike the plain
+   overlays-v5 alpha pass). Phone geometry from phone-layout.json
+   (measure-phone.mjs on assets/iphone.png, full-frame mode). The placeholder PNG
+   sits ABOVE the video; the video rect bleeds 3 source px under the bezel. */
+#chroma{background:#000 url(assets/background.png) center/cover no-repeat}
+.phone{position:absolute;left:0px;top:0px;width:1920px;height:1080px;z-index:0}
+.phone-screen{position:absolute;left:724px;top:43px;width:465.5px;height:997px;
+  border-radius:68.5px;overflow:hidden;background:#000;z-index:0}
+.phone-screen video{width:100%;height:100%;object-fit:cover;display:block}
+.phone-frame{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+/* ---- interlude themes: add class="theme-violet|theme-amber|theme-green" to a .takeover card.
+   Default (no class) is the blue look. Use for short (3-7 s) interludes over footage. ---- */
+.takeover.theme-violet .inner{background:#120B1F}
+.takeover.theme-violet .aurora{background:radial-gradient(ellipse at center, rgba(167,119,255,.38) 0%, rgba(167,119,255,.14) 32%, rgba(18,11,31,0) 68%)}
+.takeover.theme-violet .accent{background:linear-gradient(90deg,#B794FF,#E1D0FF);-webkit-background-clip:text;background-clip:text;color:transparent}
+.takeover.theme-amber .inner{background:#1A1206}
+.takeover.theme-amber .aurora{background:radial-gradient(ellipse at center, rgba(245,168,42,.36) 0%, rgba(245,168,42,.13) 32%, rgba(26,18,6,0) 68%)}
+.takeover.theme-amber .accent{background:linear-gradient(90deg,#F5A82A,#FFE2A0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.takeover.theme-green .inner{background:#07160F}
+.takeover.theme-green .aurora{background:radial-gradient(ellipse at center, rgba(74,222,128,.34) 0%, rgba(74,222,128,.12) 32%, rgba(7,22,15,0) 68%)}
+.takeover.theme-green .accent{background:linear-gradient(90deg,#4ADE80,#B7F5CF);-webkit-background-clip:text;background-clip:text;color:transparent}
+/* big-number graphic for an interlude: <div class="big-num">24<small>ore</small></div> */
+.big-num{font-family:var(--display);font-weight:800;font-size:260px;letter-spacing:-6px;line-height:1;color:var(--fg);text-shadow:0 0 80px rgba(55,189,248,.45)}
+.big-num small{font-size:70px;letter-spacing:0;margin-left:18px;color:var(--fg-dim);font-weight:600}
+/* idea interlude layout: <div class="idea-stage"><div class="idea-line">text <span class="accent">word</span></div><div class="idea-note">note</div></div>
+   or a graphic: <div class="idea-stage"><div class="big-num">24<small>de ore</small></div><div class="idea-note">note</div></div> */
+.idea-stage{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px}
+.idea-line{font-family:var(--display);font-weight:700;font-size:80px;line-height:1.15;letter-spacing:-1px;text-align:center;max-width:1500px;color:var(--fg)}
+.idea-line .accent{background:linear-gradient(90deg,var(--accent),#8fe0ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.idea-note{font-family:var(--body);font-weight:500;font-size:32px;color:var(--fg-dim);text-align:center;max-width:1300px;line-height:1.4}
+</style></head>
+<body>
+<!--
+  STARTER for video-iphone-edit (copy to video-projects/<name>/index.html).
+  It is overlays-v5 plus everything learned on demo-project (2026-10-07):
+  background + phone stack, badge max-width 672px, 4 agenda boxes at 390px,
+  handoffOut() between back-to-back tier-1 cards, badgeIn()/badgeOut() helpers,
+  local GSAP. ALL COPY AND ALL TIMESTAMPS BELOW BELONG TO demo-project
+  ("Album foto partajat pe iPhone", 93.467 s). Replace every string, every
+  data-start/data-duration (root, #chroma, narration, #phone-video = narration
+  length) and every helper timestamp with the new project's transcript anchors.
+  Keep: CSS, helpers, phone stack, track/z-index structure.
+-->
+<!--
+  Album foto partajat pe iPhone — demo-project
+  Built with video-iphone-edit on overlays-v5. Inputs: projects-full/demo-project/
+  (audio/audio.mp3, video/video-1.MP4); script supplied in chat (source/script.md).
+  Transcript: source/transcript.kit.json (MacWhisper, local).
+
+  ANCHORS (transcript word -> beat). Beats enter ~0.2s after the anchor word.
+    0.0    "Te-ai întors din vacanță..."           -> hook (problem beat)
+    3.2    "...cu sute de poze..."                   -> badge-intro in
+    8.2    "...nimeni nu mai știe unde sunt..."      -> hook pivot
+    13.2   13.04 "Ei bine, există o soluție..."      -> hook solution
+    17.9   17.86 "În acest ghid"                     -> agenda card in
+    19.8 / 23.5  "pas cu pas ... album fotopartajat" -> ag-1 in / done
+    25.0 / 30.9  "albume partajate vs. bibliotecă"    -> ag-2 in / done (30.68 "iCloud?")
+    32.4 / 36.6  "costuri, limite ... iOS"            -> ag-3 in / done
+    38.1 / 42.8  "împarți amintiri ... Android"       -> ag-4 in / done (42.36 "Android")
+    44.4   44.56 "Pasul 0"                           -> section title in
+    50.6   (section card out; 51.88 "Acesta este pasul") -> badge-0-a in
+    57.5   57.32 "Deschide aplicația Configurări"    -> det 1
+    60.3   60.12 "Apasă pe contul tău Apple"         -> det 2
+    64.2   64.06 "Selectează secțiunea iCloud"       -> det 3
+    66.0   65.82 "La rubrica Salvate în iCloud"      -> det 4
+    69.9   69.88 "Glisează în jos"                    -> badge-0-b in
+    71.4   71.18 "secțiunea Partajare"               -> det 1
+    74.2   74.00 "Bibliotecă partajată"              -> det 2
+    77.8   77.68 "Apasă pe Albume partajate"         -> det 3
+    81.3   81.40 "Verifică dacă comutatorul"         -> badge-0-c in
+    85.9   85.76 "verde"                              -> det 1
+    88.4   88.24 "atinge-l"                           -> det 2
+    90.3   90.08 "Acum că funcția este pornită"      -> det 3
+  Phone sync + highlights: phone-plan.json, assets/phone-track.timeline.json,
+  assets/phone-track.highlight.json (same clock).
+-->
+<div id="root" data-composition-id="root" data-start="0" data-duration="104.4" data-width="3840" data-height="2160">
+
+<audio id="narration" data-start="0" data-duration="93.467" data-track-index="4" src="assets/narration.wav"></audio>
+
+<div id="canvas">
+
+  <div id="chroma" class="clip" data-start="0" data-duration="93.467" data-track-index="0"></div>
+
+  <!-- phone stack: non-timed wrappers; the video is the only timed element (track 1) -->
+  <div class="phone" id="phone">
+    <div class="phone-screen">
+      <video id="phone-video" data-start="0" data-duration="93.467" data-track-index="1"
+             src="assets/phone-track.highlighted.mp4" muted playsinline></video>
+    </div>
+    <img class="phone-frame" src="assets/iphone.png" alt="">
+  </div>
+
+  <!-- ============ TIER-1 (track 2) ============ -->
+  <div id="hook-intro" class="takeover clip" data-start="0" data-duration="17.9" data-track-index="2">
+    <div class="inner">
+    <div class="dotgrid"></div><div class="aurora"></div><div class="vignette"></div>
+    <div class="hook-stage">
+      <div class="hook-glyph-wrap">
+        <div class="hook-glyph problem" id="hg-problem">
+          <svg viewBox="0 0 64 64"><path d="M32 8 L59 54 H5 Z"/><line x1="32" y1="24" x2="32" y2="38"/><line x1="32" y1="45" x2="32" y2="45.1" stroke-width="4"/></svg>
+        </div>
+        <div class="hook-glyph solution" id="hg-solution">
+          <svg viewBox="0 0 64 64"><polyline points="16,34 27,45 48,20"/></svg>
+        </div>
+      </div>
+      <div class="hook-lines">
+        <div class="stat-line" id="hi-problem">Sute de poze din vacanță. <span class="accent alert">Și haos.</span><span class="note">WhatsApp, Messenger, grup după grup.</span></div>
+        <div class="stat-line" id="hi-pivot">Nimeni nu mai știe <span class="accent alert">unde sunt pozele</span>.<span class="note">Sună cunoscut?</span></div>
+        <div class="stat-line" id="hi-solution">Un singur album, <span class="accent">direct în iPhone</span>.<span class="note">Pentru familie, prieteni și chiar Android.</span></div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <div class="badge clip" id="badge-intro" data-start="3.2" data-duration="14.7" data-track-index="3">
+    <div class="rail-bar"></div>
+    <div>
+      <div class="badge-title">Album foto partajat pe iPhone <span class="idx">Intro</span></div>
+      <div class="badge-sub">Pozele din vacanță &mdash; <span class="hl">haos</span></div>
+    </div>
+  </div>
+
+  <div id="agenda" class="takeover clip" data-start="17.9" data-duration="26.5" data-track-index="2">
+    <div class="inner">
+    <div class="dotgrid"></div><div class="aurora"></div><div class="vignette"></div>
+    <div class="agenda-stage">
+      <div class="ag-kicker">În acest ghid</div>
+      <div class="ag-title">Ce vei <em>învăța</em></div>
+      <div class="ag-grid">
+        <div class="ag-box" id="ag-1">
+          <div class="ag-icon"><svg viewBox="0 0 64 64"><rect x="10" y="14" width="44" height="36" rx="5"/><circle cx="24" cy="27" r="4"/><polyline points="12,46 26,34 36,42 44,36 52,44"/></svg></div>
+          <div class="ag-label">Album partajat pas cu pas</div>
+          <div class="ag-note-wrap" data-layout-allow-overlap>
+            <div class="ag-note-pre" id="ag-1-note-pre">Creat de la zero, în câțiva pași</div>
+            <div class="ag-note-done" id="ag-1-note-done">&#10003; Pas cu pas, de la zero</div>
+          </div>
+        </div>
+        <div class="ag-box" id="ag-2">
+          <div class="ag-icon"><svg viewBox="0 0 64 64"><rect x="8" y="16" width="20" height="32" rx="3"/><rect x="36" y="16" width="20" height="32" rx="3"/><line x1="32" y1="10" x2="32" y2="54"/></svg></div>
+          <div class="ag-label">Album vs. Bibliotecă</div>
+          <div class="ag-note-wrap" data-layout-allow-overlap>
+            <div class="ag-note-pre" id="ag-2-note-pre">Marea confuzie, lămurită</div>
+            <div class="ag-note-done" id="ag-2-note-done">&#10003; Două lucruri diferite</div>
+          </div>
+        </div>
+        <div class="ag-box" id="ag-3">
+          <div class="ag-icon"><svg viewBox="0 0 64 64"><path d="M18 46h30a10 10 0 0 0 0-20 14 14 0 0 0-27-3 11 11 0 0 0-3 23z"/></svg></div>
+          <div class="ag-label">Stocare și limite</div>
+          <div class="ag-note-wrap" data-layout-allow-overlap>
+            <div class="ag-note-pre" id="ag-3-note-pre">Costuri și schimbări din iOS</div>
+            <div class="ag-note-done" id="ag-3-note-done">&#10003; Știi cine plătește</div>
+          </div>
+        </div>
+        <div class="ag-box" id="ag-4">
+          <div class="ag-icon"><svg viewBox="0 0 64 64"><path d="M27 37l10-10"/><path d="M24 30l-6 6a8 8 0 0 0 11 11l6-6"/><path d="M40 34l6-6a8 8 0 0 0-11-11l-6 6"/></svg></div>
+          <div class="ag-label">Partajare cu Android</div>
+          <div class="ag-note-wrap" data-layout-allow-overlap>
+            <div class="ag-note-pre" id="ag-4-note-pre">Chiar și prieteni cu Android</div>
+            <div class="ag-note-done" id="ag-4-note-done">&#10003; Un link, orice telefon</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- Section card. overlays-fx adds: .st-num (outlined numeral) and, when the section has
+       footage, a screenshot of it: <div class="st-media"><img src="assets/cards/section-0.jpg" alt=""></div>
+       plus class="section-stage has-media" (text moves to a left column). Frame: ffmpeg -ss <t>
+       -i assets/<track>.highlighted.mp4 -frames:v 1 -vf scale=1760:-1 -q:v 3 assets/cards/section-0.jpg -->
+  <div id="section-0" class="takeover clip" data-start="44.4" data-duration="6.2" data-track-index="2">
+    <div class="inner">
+    <div class="dotgrid"></div><div class="aurora"></div><div class="vignette"></div>
+    <div class="st-num">00</div>
+    <div class="section-stage">
+      <div class="st-kicker">Pasul 0</div>
+      <div class="st-headline">Activează<br>funcția</div>
+      <div class="st-sub">Pornește Albumele partajate din Configurări, înainte să deschizi Poze. Pasul pe care mulți îl sar.</div>
+      <div class="rail" id="rail-0">
+        <div class="link"></div><div class="link-fill"></div>
+        <div class="node on"><div class="dot"></div><div class="lbl">00 Activare</div></div>
+        <div class="node"><div class="dot"></div><div class="lbl">01 Album</div></div>
+        <div class="node"><div class="dot"></div><div class="lbl">02 Diferențe</div></div>
+        <div class="node"><div class="dot"></div><div class="lbl">03 Stocare</div></div>
+        <div class="node"><div class="dot"></div><div class="lbl">04 Android</div></div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- ============ TIER-2 BADGES (track 3), over the phone ============ -->
+  <div class="badge clip" id="badge-0-a" data-start="50.6" data-duration="19.2" data-track-index="3">
+    <div class="rail-bar"></div>
+    <div>
+      <div class="badge-title">Album foto partajat pe iPhone <span class="idx">Pasul 0</span></div>
+      <div class="badge-sub"><span class="hl">Pasul 0:</span> Activează funcția</div>
+      <div class="badge-dets" data-layout-allow-overlap>
+        <div class="det" data-layout-allow-overflow><span class="dot"></span><span>Deschide Configurări</span></div>
+        <div class="det" data-layout-allow-overflow><span class="dot"></span><span>Apasă pe contul Apple</span></div>
+        <div class="det" data-layout-allow-overflow><span class="dot"></span><span>Selectează iCloud</span></div>
+        <div class="det" data-layout-allow-overflow><span class="dot"></span><span>Salvate în iCloud &rsaquo; Poze</span></div>
+      </div>
+      <div class="pips"><i class="on"></i><i></i><i></i></div>
+    </div>
+  </div>
+
+  <div class="badge clip" id="badge-0-b" data-start="69.9" data-duration="11.4" data-track-index="3">
+    <div class="rail-bar"></div>
+    <div>
+      <div class="badge-title">Album foto partajat pe iPhone <span class="idx">Pasul 0</span></div>
+      <div class="badge-sub">Secțiunea <span class="hl">Partajare</span></div>
+      <div class="badge-dets" data-layout-allow-overlap>
+        <div class="det" data-layout-allow-overflow><span class="dot"></span><span>Glisează în jos până la Partajare</span></div>
+        <div class="det" data-layout-allow-overflow><span class="dot"></span><span>Bibliotecă partajată: mai încolo</span></div>
+        <div class="det" data-layout-allow-overflow><span class="dot"></span><span>Apasă pe Albume partajate</span></div>
+      </div>
+      <div class="pips"><i class="done"></i><i class="on"></i><i></i></div>
+    </div>
+  </div>
+
+  <div class="badge clip" id="badge-0-c" data-start="81.3" data-duration="12.167" data-track-index="3">
+    <div class="rail-bar"></div>
+    <div>
+      <div class="badge-title">Album foto partajat pe iPhone <span class="idx">Pasul 0</span></div>
+      <div class="badge-sub">Comutatorul <span class="hl">verde</span></div>
+      <div class="badge-dets" data-layout-allow-overlap>
+        <div class="det" data-layout-allow-overflow><span class="dot"></span><span>Verde = funcția e activă</span></div>
+        <div class="det" data-layout-allow-overflow><span class="dot"></span><span>Gri? Atinge-l ca să-l activezi</span></div>
+        <div class="det" data-layout-allow-overflow><span class="dot"></span><span>Gata de treabă!</span></div>
+      </div>
+      <div class="pips"><i class="done"></i><i class="done"></i><i class="on"></i></div>
+    </div>
+  </div>
+
+
+  <!-- ============ OVERLAYS-FX (spec: style-templates/overlays-v5/fx/README.md) ============
+       On-screen text over the footage, used only where it matters. Examples (copy, retime):
+    <div id="cmd-1" class="fx-cmd clip" data-start="57.6" data-duration="4" data-track-index="9" data-kind="Search" data-pos="top">Configurări</div>
+    <div id="co-1" class="fx-callout clip tone-ok" data-start="62.0" data-duration="3.5" data-track-index="7" data-x="600" data-y="980" data-side="right">
+      <div class="co-label"><span class="co-k">Aici</span><b class="co-t">Contul Apple</b><span class="co-s">numele tău, sus</span></div></div>
+    <div id="say-1" class="fx-title clip tone-warn" data-start="75" data-duration="4.5" data-track-index="8">
+      <div class="ft-kicker">Atenție</div><div class="ft-line">Nu e <span class="mark">Biblioteca partajată</span></div><div class="ft-sub">Sunt două funcții diferite.</div></div>
+    <div id="chk-1" class="fx-check clip" data-start="80" data-duration="12" data-track-index="10">
+      <div class="ck-title">Verificare</div>
+      <div class="ck-item" data-at="82"><b>Albume partajate: pornit</b><span>comutatorul verde</span></div></div>
+    JS: fxCmd('#cmd-1'); fxCallout('#co-1'); fxTitle('#say-1'); fxCheck('#chk-1');
+  -->
+
+  <!-- ============ ENDSCREEN (track 6): opaque, covers everything; starts 5 s before the narration ends ============
+       ES = D - 5 (D = narration duration). Root data-duration = ES + endscreen length.
+       Audio is a separate extracted file (video stays muted). Wrapper is non-timed; it fades in. -->
+  <div id="endscreen" style="position:absolute;inset:0;z-index:5;opacity:0;background:#000">
+    <video id="endscreen-video" data-start="88.467" data-duration="15.933" data-track-index="6"
+           src="assets/endscreen.mp4" muted playsinline style="width:100%;height:100%;object-fit:cover"></video>
+  </div>
+
+</div>
+<audio id="endscreen-audio" data-start="88.467" data-duration="15.933" data-track-index="5" src="assets/endscreen.m4a"></audio>
+</div>
+
+<script>
+const tl = gsap.timeline({paused:true});
+/* FX.screens maps phone-track pixels to the canvas for callouts: rect = the .phone-screen
+   box (phone-layout.json, canvas px), TW x TH = phone-track size. */
+FX.screens = [{kind:'phone', rect:[724,43,465.5,997], TW:1180, TH:2556}];
+tl.set('#endscreen', {opacity:0}, 0);
+tl.to('#endscreen', {opacity:1, duration:.4, ease:'power1.out'}, 88.467);
+
+/* Tier-1 dissolve-to-transparent exit: fade+blur the opaque .inner fill out right before
+   the clip window ends, with a hard opacity kill exactly at the boundary (required to avoid
+   stale state on non-linear seeks / the gsap_exit_missing_hard_kill lint check). */
+function dissolveOut(id, start, dur){
+  tl.to(id+' .inner', {opacity:0, scale:1.03, filter:'blur(10px)', duration:.45, ease:'power2.in'}, start+dur-.45);
+  tl.set(id+' .inner', {opacity:0}, start+dur);
+}
+
+/* Agenda box helper (v3) — encapsulates the confirmed fade-in -> pending breathing pulse ->
+   activation payoff (border/glow flip + scale pop + icon-tile color flip + note crossfade)
+   pattern so adding a topic box is one call, not eight hand-written tweens.
+   id: the .ag-box element's id, e.g. 'ag-box-1'.
+   fadeIn: when the box fades in — anchor ~0.5-1.5s ahead of the topic's first transcript word.
+   activate: when it flips to done — anchor ~0.2s after the topic's mention finishes. */
+function agendaBox(id, {fadeIn, activate}){
+  gsap.set('#'+id+'-note-done', {opacity:0});
+  tl.from('#'+id, {opacity:0, y:24, duration:.6, ease:'power3.out'}, fadeIn)
+    .to('#'+id+' .ag-icon', {boxShadow:'0 0 34px rgba(55,189,248,.4)', duration:.9, ease:'sine.inOut', yoyo:true, repeat:1}, fadeIn+0.7)
+    .to('#'+id, {borderColor:'#4ADE80', boxShadow:'0 0 32px rgba(74,222,128,.35)', duration:.35, ease:'power2.out'}, activate)
+    .to('#'+id, {scale:1.035, duration:.16, ease:'power2.out', yoyo:true, repeat:1}, activate)
+    .to('#'+id+' .ag-icon', {borderColor:'rgba(74,222,128,.55)', backgroundColor:'rgba(74,222,128,.12)', boxShadow:'0 0 26px rgba(74,222,128,.4)', duration:.35, ease:'power2.out'}, activate)
+    .to('#'+id+' .ag-icon svg', {stroke:'#4ADE80', duration:.35, ease:'power2.out'}, activate)
+    .to('#'+id+'-note-pre', {opacity:0, duration:.3, ease:'power2.out'}, activate)
+    .to('#'+id+'-note-done', {opacity:1, duration:.3, ease:'power2.out'}, activate);
+}
+
+/* Evolving badge detail lines (v4) — the one thing v4 adds over v3.
+   A tier-2 badge that holds for 25-45s while the narrator enumerates specifics goes stale:
+   the same title sits motionless for the whole span. badgeDetails() lets that badge grow a
+   short line per specific, each at its own transcript anchor, so the graphic tracks what is
+   actually being said instead of summarising it once and freezing.
+
+   Stacking, not swapping: earlier lines stay on screen and dim to --fg-dim while the newest
+   sits at full --fg, so the viewer keeps the whole list in view (it reads as accumulating
+   evidence) instead of losing each point as the next arrives. For a badge whose points are
+   genuinely mutually exclusive, change the tl.to on the previous line to fade it to opacity:0
+   and height:0 at the same timestamp — that gives swap behaviour with no other changes.
+
+   The badge is bottom-anchored (bottom:56px), so it grows UPWARD as lines land: the bottom
+   edge stays put against the frame and never walks around over the footage.
+
+   id:    the .badge element's id.
+   items: [{at, text}] in the same order as the .det rows in the markup. `text` is only a
+          readability aid for whoever edits the timeline — the visible copy lives in the
+          .det markup, so keep the two in sync. */
+const BADGE_DET_H = 42;   /* must match the .det line box in the CSS above */
+function badgeDetails(id, items){
+  const row = n => '#'+id+' .badge-dets .det:nth-of-type('+n+')';
+  /* Collapsed at rest, so seeking anywhere before a line's anchor shows it absent. */
+  gsap.set('#'+id+' .badge-dets .det', {height:0, opacity:0});
+  items.forEach((item, i) => {
+    const cur = row(i+1);
+    tl.to(cur, {height:BADGE_DET_H, opacity:1, duration:.45, ease:'power2.out'}, item.at)
+      .fromTo(cur+' .dot', {scale:0}, {scale:1, duration:.35, ease:'back.out(2)'}, item.at+0.1);
+    /* demote the previous line at the same instant, so arrival and demotion read as one move */
+    if(i > 0){
+      tl.to(row(i), {color:'rgba(240,238,233,.62)', duration:.35, ease:'power2.out'}, item.at)
+        .to(row(i)+' .dot', {backgroundColor:'rgba(240,238,233,.30)', boxShadow:'0 0 0 rgba(0,0,0,0)', duration:.35, ease:'power2.out'}, item.at);
+    }
+  });
+}
+
+/* Section-chip scramble-in (v5) — the one visual thing v5 adds over v4.
+   When a tier-2 badge arrives with a new .idx chip ("Intro" -> "Section 1"), the chip
+   decodes from seeded mono glyphs into its real label over `dur` seconds, left to right.
+   Seek-safe by construction: the text is a pure function of the proxy tween's progress
+   and a hash of the character index (never Math.random()), so any frame the renderer
+   seeks to shows the same glyphs. .badge-title is Space Mono, so the chip's width does
+   not jitter while it scrambles. Use it only where the section actually changes — a chip
+   that scrambles on every badge stops signalling anything.
+   sel:   the chip, e.g. '#badge-2-0 .idx'.
+   at:    the SAME timestamp as the badge's own entrance tween. Before `at` the chip's
+          text depends on seek history (untouched label on a fresh load, scrambled after a
+          backward seek), so it must only happen while the badge is still at opacity 0.
+   dur:   decode length; ~0.45s lets it finish as the badge settles. Under 0.3s reads as
+          a flicker, over 0.6s reads as a loading bug. */
+const CHIP_GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#/';
+function chipScramble(sel, at, dur = .45){
+  const el = document.querySelector(sel);
+  const label = el.textContent;
+  const hash = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+  const proxy = {p:0};
+  tl.fromTo(proxy, {p:0}, {p:1, duration:dur, ease:'none', onUpdate(){
+    const p = proxy.p;
+    if(p >= 1){ el.textContent = label; return; }
+    const shown = Math.floor(p * label.length);
+    const step = Math.floor(p * 12); /* glyphs re-roll 12 times across the decode */
+    el.textContent = label.split('').map((ch, i) =>
+      i < shown || ch === ' ' ? ch : CHIP_GLYPHS[Math.floor(hash(step * 31 + i) * CHIP_GLYPHS.length)]
+    ).join('');
+  }}, at);
+}
+
+/* Card-to-card hand-off: when another tier-1 card starts the instant this one ends,
+   dissolving the opaque .inner would flash the phone underneath for ~0.45s. Fade
+   only the content and keep the dark fill until the hard kill at the boundary. */
+function handoffOut(id, stage, start, dur){
+  tl.to(id+' '+stage, {opacity:0, filter:'blur(8px)', duration:.45, ease:'power2.in'}, start+dur-.45);
+  tl.set(id+' .inner', {opacity:0}, start+dur);
+}
+
+/* ---- HOOK INTRO (0-17.9) — paced for attention, rolls over the real narration ---- */
+gsap.set(['#hi-problem','#hi-pivot','#hi-solution'], {opacity:0, filter:'blur(14px)'});
+gsap.set(['#hg-problem','#hg-solution'], {opacity:0, scale:.6});
+tl.to('#hg-problem', {opacity:1, scale:1, duration:.6, ease:'back.out(1.6)'}, 0.3)
+  .to('#hg-problem', {x:-6, duration:.08, ease:'power1.inOut', yoyo:true, repeat:3}, 0.9)
+  .to('#hi-problem', {opacity:1, filter:'blur(0px)', y:-10, duration:.8, ease:'power4.out'}, 0.6)
+  .to('#hi-problem', {opacity:0, filter:'blur(10px)', duration:.4, ease:'power2.in'}, 7.6)
+  .to('#hi-pivot', {opacity:1, filter:'blur(0px)', y:-10, duration:.6, ease:'power3.out'}, 8.2)
+  .to('#hg-problem', {opacity:0, scale:.7, duration:.4, ease:'power2.in'}, 12.5)
+  .to('#hi-pivot', {opacity:0, filter:'blur(10px)', duration:.4, ease:'power2.in'}, 12.5)
+  .to('#hg-solution', {opacity:1, scale:1, duration:.7, ease:'back.out(2)'}, 13.1)
+  .to('#hg-solution', {boxShadow:'0 0 46px rgba(55,189,248,.55)', duration:.8, ease:'sine.inOut', yoyo:true, repeat:1}, 13.8)
+  .to('#hi-solution', {opacity:1, filter:'blur(0px)', y:-10, duration:.8, ease:'power4.out'}, 13.3);
+handoffOut('#hook-intro', '.hook-stage', 0, 17.9);
+
+/* ---- BADGE ENTRANCE / EXIT ---- */
+function badgeIn(id, at){
+  tl.from(id, {opacity:0, y:30, duration:.7, ease:'power3.out'}, at)
+    .from(id+' .rail-bar', {scaleY:0, transformOrigin:'50% 100%', duration:.6, ease:'power3.out'}, at+.15);
+}
+function badgeOut(id, start, dur){
+  tl.to(id, {opacity:0, y:12, duration:.3, ease:'power2.in'}, start+dur-.3);
+  tl.set(id, {opacity:0}, start+dur);
+}
+badgeIn('#badge-intro', 3.2);
+badgeOut('#badge-intro', 3.2, 14.7);
+
+/* ---- AGENDA ---- */
+tl.from('#agenda .ag-kicker', {opacity:0, y:16, duration:.6, ease:'power2.out'}, 18.2)
+  .from('#agenda .ag-title', {opacity:0, y:24, filter:'blur(10px)', duration:.8, ease:'power3.out'}, 18.4);
+agendaBox('ag-1', {fadeIn: 19.8, activate: 23.5});
+agendaBox('ag-2', {fadeIn: 25.0, activate: 30.9});
+agendaBox('ag-3', {fadeIn: 32.4, activate: 36.6});
+agendaBox('ag-4', {fadeIn: 38.1, activate: 42.8});
+handoffOut('#agenda', '.agenda-stage', 17.9, 26.5);
+
+/* ---- SECTION TITLE: Pasul 0 ----
+   fxSection (overlays-fx.js) runs the whole card: light-beam wipe in over the footage
+   (skip with afterCard:true when it follows another card, as here after the agenda),
+   kicker / headline / sub / rail, the .st-num numeral, the .st-media screenshot, and
+   dissolveOut() at the end ({toCard:true} hands off to a following card instead). */
+fxSection('#section-0', 44.4, 6.2, {afterCard:true});
+
+/* ---- STEP BADGES (Pasul 0) ---- */
+badgeIn('#badge-0-a', 50.6);
+chipScramble('#badge-0-a .idx', 50.6);
+badgeDetails('badge-0-a', [
+  {at: 57.5, text: 'Deschide Configurări'},
+  {at: 60.3, text: 'Apasă pe contul Apple'},
+  {at: 64.2, text: 'Selectează iCloud'},
+  {at: 66.0, text: 'Salvate în iCloud › Poze'},
+]);
+badgeOut('#badge-0-a', 50.6, 19.2);
+
+badgeIn('#badge-0-b', 69.9);
+badgeDetails('badge-0-b', [
+  {at: 71.4, text: 'Glisează în jos până la Partajare'},
+  {at: 74.2, text: 'Bibliotecă partajată: mai încolo'},
+  {at: 77.8, text: 'Apasă pe Albume partajate'},
+]);
+badgeOut('#badge-0-b', 69.9, 11.4);
+
+badgeIn('#badge-0-c', 81.3);
+badgeDetails('badge-0-c', [
+  {at: 85.9, text: 'Verde = funcția e activă'},
+  {at: 88.4, text: 'Gri? Atinge-l ca să-l activezi'},
+  {at: 90.3, text: 'Gata de treabă!'},
+]);
+
+/* ---- INTERLUDE helper: a short full-screen card OVER footage (3-7 s). Fades in, dissolves out.
+   Markup (with the other tier-1 cards, own data-start/data-duration, track 2; theme-violet|amber|green optional):
+     <div id="idea-1" class="takeover theme-amber clip" data-start="108.4" data-duration="6" data-track-index="2">
+       <div class="inner"><div class="dotgrid"></div><div class="aurora"></div><div class="vignette"></div>
+         <div class="idea-stage"><div class="big-num">1<small>miliard</small></div><div class="idea-note">de dispozitive Apple</div></div>
+       </div></div>
+     interlude('#idea-1', 108.4, 6);   // badgeOut() the active badge before the start, badgeIn() the next one after the end */
+function interlude(id, start, dur){
+  tl.from(id+' .inner', {opacity:0, duration:.4, ease:'power2.out'}, start);
+  tl.from(id+' .idea-line, '+id+' .big-num, '+id+' .idea-note', {opacity:0, y:24, filter:'blur(12px)', duration:.7, ease:'power3.out', stagger:.15}, start+.25);
+  dissolveOut(id, start, dur);
+}
+
+window.__timelines = window.__timelines || {};
+window.__timelines['root'] = tl;
+</script>
+</body></html>
